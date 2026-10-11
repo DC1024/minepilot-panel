@@ -263,6 +263,37 @@
         <select id="skinArm"><option value="CLASSIC">CLASSIC（经典）</option><option value="SLIM">SLIM（纤细）</option></select>
         <div class="hint">导入只认固定路径，不接受 URL 或任意路径。把 64×64 PNG 放到 <code>minecraft-data/config/mcai-companion/skin.png</code> 即可。</div>
       </div>
+
+      <div class="card">
+        <h2>自主目标</h2>
+        <label>启用自主行动</label>
+        <select id="autonomyEnabled">
+          <option value="false">false（关闭 · 只在玩家指挥时行动）</option>
+          <option value="true">true（开启 · 空闲时自己找目标）</option>
+        </select>
+        <div class="row">
+          <div>
+            <label>提议间隔（秒，1–600）</label>
+            <input id="autonomyInterval" type="number" min="1" max="600">
+            <div class="err" id="e_autonomyInterval"></div>
+          </div>
+          <div>
+            <label>目标偏好</label>
+            <select id="autonomyGoalStyle">
+              <option value="BALANCED">BALANCED（均衡：生存+建设+探索）</option>
+              <option value="SURVIVAL">SURVIVAL（优先生存）</option>
+              <option value="BUILD">BUILD（优先建设据点）</option>
+              <option value="EXPLORE">EXPLORE（优先探索）</option>
+            </select>
+            <div class="err" id="e_autonomyGoalStyle"></div>
+          </div>
+        </div>
+        <div class="hint">
+          开启后，AI 在<b>没有玩家/MCP 指令</b>且未处于硬核评测时会自己向模型要一个目标并执行；<br>
+          执行仍走原版技能与「公平假玩家」通道，<b>不会获得额外权限</b>（不瞬移、不穿墙、不动他人物品）。<br>
+          需要模型已配置且连通；未配置时不会自行臆造目标。改完需重启 mc-server 生效。
+        </div>
+      </div>
     </div>
   </section>
 
@@ -592,6 +623,9 @@ function fillConfig(c){
   $('waypointAllowed').value = (c.waypointAllowed || []).join('\n');
   $('skinAuto').value = String(!!c.skinAutoImport);
   $('skinArm').value = c.skinArmType || 'CLASSIC';
+  $('autonomyEnabled').value = String(!!c.autonomyEnabled);
+  $('autonomyInterval').value = (c.autonomyIntervalSeconds === undefined ? 45 : c.autonomyIntervalSeconds);
+  $('autonomyGoalStyle').value = c.autonomyGoalStyle || 'BALANCED';
   lastConfigLoaded = true;
 }
 function parseUuids(v){ return v.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean); }
@@ -607,13 +641,17 @@ function collectConfig(){
     waypointAllowed: parseUuids($('waypointAllowed').value),
     skinAutoImport: $('skinAuto').value === 'true',
     skinArmType: $('skinArm').value,
+    autonomyEnabled: $('autonomyEnabled').value === 'true',
+    autonomyIntervalSeconds: parseInt($('autonomyInterval').value, 10),
+    autonomyGoalStyle: $('autonomyGoalStyle').value,
   };
 }
 function showConfigErrors(errs){
-  ['baseUrl','name','soft','hard','mcpPort','chat','wp'].forEach(k => $('e_' + k).textContent = '');
+  ['baseUrl','name','soft','hard','mcpPort','chat','wp','autonomyInterval','autonomyGoalStyle'].forEach(k => $('e_' + k).textContent = '');
   if (!errs) return;
   const map = { baseUrl:'e_baseUrl', name:'e_name', softTimeoutSeconds:'e_soft',
-                hardTimeoutSeconds:'e_hard', mcpPort:'e_mcpPort', chatAllowed:'e_chat', waypointAllowed:'e_wp' };
+                hardTimeoutSeconds:'e_hard', mcpPort:'e_mcpPort', chatAllowed:'e_chat', waypointAllowed:'e_wp',
+                autonomyIntervalSeconds:'e_autonomyInterval', autonomyGoalStyle:'e_autonomyGoalStyle' };
   for (const [k, v] of Object.entries(errs)) if (map[k]) $(map[k]).textContent = v;
 }
 

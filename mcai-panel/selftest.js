@@ -47,6 +47,14 @@ const FIXTURE = `[model]
 [skin]
 \tautoImportFixedFile = true
 \tarmType = "CLASSIC"
+
+[autonomy]
+\t#Allow the companion to propose and pursue its own objectives while idle.
+\tenabled = false
+\t#Seconds between autonomous objective proposals while idle. Range: 1 ~ 600
+\tintervalSeconds = 45
+\t#Optional bias: BALANCED, SURVIVAL, BUILD, or EXPLORE.
+\tgoalStyle = "BALANCED"
 `;
 fs.writeFileSync(path.join(tmp, 'config', 'mcai-companion.toml'), FIXTURE, 'utf8');
 
@@ -185,6 +193,9 @@ check('mcpEnabled', c0.mcpEnabled === true, String(c0.mcpEnabled));
 check('mcpPort=25766', c0.mcpPort === 25766, String(c0.mcpPort));
 check('chatAllowed 空', JSON.stringify(c0.chatAllowed) === '[]', JSON.stringify(c0.chatAllowed));
 check('armType=CLASSIC', c0.skinArmType === 'CLASSIC', String(c0.skinArmType));
+check('autonomyEnabled=false', c0.autonomyEnabled === false, String(c0.autonomyEnabled));
+check('autonomyInterval=45', c0.autonomyIntervalSeconds === 45, String(c0.autonomyIntervalSeconds));
+check('autonomyGoalStyle=BALANCED', c0.autonomyGoalStyle === 'BALANCED', String(c0.autonomyGoalStyle));
 
 console.log('--- 2. 写入 + 复读 ---');
 const UUID = '7c6b39ee-faac-39cf-a565-09d214738313';
@@ -193,6 +204,7 @@ const c1 = {
   hardTimeoutSeconds: 120, mcpEnabled: false, mcpPort: 25800,
   chatAllowed: [UUID], waypointAllowed: [UUID, '1b533e2e-635a-3629-a7d5-3edc53a2b7d1'],
   skinAutoImport: false, skinArmType: 'SLIM',
+  autonomyEnabled: true, autonomyIntervalSeconds: 90, autonomyGoalStyle: 'BUILD',
 };
 const errs1 = P.validateConfig(c1);
 check('新配置通过校验', Object.keys(errs1).length === 0, JSON.stringify(errs1));
@@ -207,11 +219,14 @@ check('chatAllowed 已写入', JSON.stringify(c2.chatAllowed) === JSON.stringify
 check('waypoints 两个', c2.waypointAllowed.length === 2, JSON.stringify(c2.waypointAllowed));
 check('armType 已改', c2.skinArmType === 'SLIM', c2.skinArmType);
 check('activeVision 未被破坏', c2.activeVision === true, String(c2.activeVision));
+check('autonomyEnabled 已改', c2.autonomyEnabled === true, String(c2.autonomyEnabled));
+check('autonomyInterval 已改', c2.autonomyIntervalSeconds === 90, String(c2.autonomyIntervalSeconds));
+check('autonomyGoalStyle 已改', c2.autonomyGoalStyle === 'BUILD', String(c2.autonomyGoalStyle));
 
 console.log('--- 3. 注释与结构保留 ---');
 const after = fs.readFileSync(P.paths.TOML_PATH, 'utf8');
 check('注释仍在', after.includes('#Provider base URL.'), 'comments lost');
-check('section 仍在', ['[model]', '[mcp]', '[perception]', '[waypoints]', '[chat]', '[skin]'].every(s => after.includes(s)));
+check('section 仍在', ['[model]', '[mcp]', '[perception]', '[waypoints]', '[chat]', '[skin]', '[autonomy]'].every(s => after.includes(s)));
 check('行数未爆炸', after.split('\n').length <= FIXTURE.split('\n').length + 2,
   'lines=' + after.split('\n').length + ' vs ' + FIXTURE.split('\n').length);
 check('没有重复 key', after.split('\n').filter(l => /^\s*port\s*=/.test(l)).length === 1, 'port 出现多次');
@@ -231,6 +246,14 @@ const e4 = P.validateConfig({ ...c1, chatAllowed: ['not-a-uuid'] });
 check('非法 UUID 被拒', !!e4.chatAllowed);
 const e5 = P.validateConfig({ ...c1, softTimeoutSeconds: 100, hardTimeoutSeconds: 60 });
 check('软>硬 被拒', !!e5.softTimeoutSeconds, JSON.stringify(e5));
+const e6 = P.validateConfig({ ...c1, autonomyIntervalSeconds: 0 });
+check('自主间隔越界被拒', !!e6.autonomyIntervalSeconds, JSON.stringify(e6));
+const e7 = P.validateConfig({ ...c1, autonomyIntervalSeconds: 601 });
+check('自主间隔上限被拒', !!e7.autonomyIntervalSeconds, JSON.stringify(e7));
+const e8 = P.validateConfig({ ...c1, autonomyGoalStyle: 'CHAOS' });
+check('非法目标偏好被拒', !!e8.autonomyGoalStyle, JSON.stringify(e8));
+const e9 = P.validateConfig({ ...c1, autonomyGoalStyle: 'EXPLORE' });
+check('合法目标偏好通过', !e9.autonomyGoalStyle, JSON.stringify(e9));
 
 console.log('--- 5. 缺失 key 时自动补插 ---');
 fs.writeFileSync(P.paths.TOML_PATH, '[model]\n\tbaseUrl = "https://old.example.com/v1"\n', 'utf8');

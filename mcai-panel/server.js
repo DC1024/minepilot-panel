@@ -43,7 +43,9 @@ const WHITELIST_PATH = path.join(DATA, 'whitelist.json');
 const BANNED_PATH = path.join(DATA, 'banned-players.json');
 const INDEX = path.join(__dirname, 'index.html');
 
-const MIN = { soft: 1, softMax: 89, hard: 2, hardMax: 300, mcpPort: 1024, mcpPortMax: 65535 };
+const MIN = { soft: 1, softMax: 89, hard: 2, hardMax: 300, mcpPort: 1024, mcpPortMax: 65535,
+  autonomyInterval: 1, autonomyIntervalMax: 600 };
+const AUTONOMY_GOAL_STYLES = ['BALANCED', 'SURVIVAL', 'BUILD', 'EXPLORE'];
 
 /* ------------------------------------------------------------------ 工具 */
 
@@ -379,6 +381,13 @@ function validateConfig(c) {
   }
   const mp = Number(c.mcpPort);
   if (!Number.isInteger(mp) || mp < MIN.mcpPort || mp > MIN.mcpPortMax) errs.mcpPort = '范围 1024–65535';
+  const ai = Number(c.autonomyIntervalSeconds);
+  if (!Number.isInteger(ai) || ai < MIN.autonomyInterval || ai > MIN.autonomyIntervalMax) {
+    errs.autonomyIntervalSeconds = '范围 1–600 秒';
+  }
+  if (!AUTONOMY_GOAL_STYLES.includes(c.autonomyGoalStyle)) {
+    errs.autonomyGoalStyle = '取值必须是：' + AUTONOMY_GOAL_STYLES.join(' / ');
+  }
   for (const [k, label] of [['chatAllowed', 'chat'], ['waypointAllowed', 'waypoints']]) {
     const list = c[k] || [];
     if (!Array.isArray(list)) { errs[k] = '必须是数组'; continue; }
@@ -1148,6 +1157,9 @@ function writeConfigFile(c) {
     { section: 'waypoints', key: 'allowedSenders', literal: '[' + (c.waypointAllowed || []).map(tomlString).join(', ') + ']' },
     { section: 'skin', key: 'autoImportFixedFile', literal: c.skinAutoImport ? 'true' : 'false' },
     { section: 'skin', key: 'armType', literal: tomlString(c.skinArmType) },
+    { section: 'autonomy', key: 'enabled', literal: c.autonomyEnabled ? 'true' : 'false' },
+    { section: 'autonomy', key: 'intervalSeconds', literal: String(c.autonomyIntervalSeconds) },
+    { section: 'autonomy', key: 'goalStyle', literal: tomlString(c.autonomyGoalStyle) },
   ];
   writeText(TOML_PATH, setTomlValues(text, updates), 0o664);
 }
@@ -1182,6 +1194,9 @@ function readConfig() {
     skinAutoImport: g('skin', 'autoImportFixedFile', true),
     skinArmType: g('skin', 'armType', 'CLASSIC'),
     activeVision: g('perception', 'activeVision', true),
+    autonomyEnabled: g('autonomy', 'enabled', false),
+    autonomyIntervalSeconds: g('autonomy', 'intervalSeconds', 45),
+    autonomyGoalStyle: g('autonomy', 'goalStyle', 'BALANCED'),
   };
 }
 
