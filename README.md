@@ -10,7 +10,7 @@
 |---|---|
 | **`OUR-IMPROVEMENTS.md`** | **对上游 MinePilot 的 8 个补丁改进汇总**（输出契约降级 / 无 schema 契约内联 schema / 技能失败诊断 / use_block 前置 / 真人误踢修复）——先看这份 |
 | **`docs/`** | **宣传页 + GitHub Pages 发布目录**（`index.html`，零依赖静态页）：项目总览、端到端拓扑、8 个补丁详情、6 页签面板、安全边界、快速上手、脱敏截图 |
-| `mcai-panel/` | 自研 Web 面板：`server.js`（后端，零依赖）+ `index.html`（单页前端）+ `selftest.js`（191 项自测） |
+| `mcai-panel/` | 自研 Web 面板：`server.js`（后端，零依赖）+ `index.html`（单页前端）+ `selftest.js`（196 项自测） |
 | `docker-compose.example.yml` | 部署用 compose 示例（含 `mcai-panel` + `mc-server` 服务，凭据已脱敏） |
 | `shots/` | 面板 6 页签的无头浏览器验证截图 |
 | `MinePilot-配置面板-使用说明.md` | 面板使用说明（访问方式、6 页签、后端接口、安全说明） |
@@ -265,7 +265,7 @@ docker restart mcai-panel        # 只读挂载 + 直接读文件，Node 不热�
 
 ## 7. 自测
 
-`mcai-panel/selftest.js`，**191 项断言全绿**，覆盖：
+`mcai-panel/selftest.js`，**196 项断言全绿**，覆盖：
 1. TOML / properties 解析、就地改写、**注释保留**、缺键插入。
 2. 属性校验（bool/enum/int/text/secret，11 项）。
 3. compose env 识别 / 改值 / 插入 / 注释 / 未知服务拒绝。
@@ -303,7 +303,7 @@ docker restart mcai-panel        # 只读挂载 + 直接读文件，Node 不热�
 |---|---|
 | `mcai-panel/server.js` | 后端，64.7 KB，零依赖 |
 | `mcai-panel/index.html` | 前端单页，66.3 KB，内联 CSS/JS，无外部资源 |
-| `mcai-panel/selftest.js` | 自测 191 项 |
+| `mcai-panel/selftest.js` | 自测 196 项 |
 | `docker-compose.yml`（NAS） | 完整 compose（含 `mcai-panel` 服务块 + compose 挂载） |
 | `panel_token.txt` | 面板令牌（48 字符） |
 | `check_panel.cjs` | 无头浏览器验证脚本（本机） |
@@ -888,7 +888,7 @@ Live-model skill failed: skill=use_block, code=use_block.action_target_occluded
 
 | 交付物 | 说明 |
 |---|---|
-| `mcai-panel/` | **自研 Web 配置面板**（MinePilot 模组本身没有 Web 面板）。`server.js`（后端，零依赖，只用 node 内置模块）+ `index.html`（单页前端）+ `selftest.js`（191 项自测）。6 页签：AI 配置 / 服务器设置 / 运行时控制 / 玩家管理 / 密码与令牌 / 日志 |
+| `mcai-panel/` | **自研 Web 配置面板**（MinePilot 模组本身没有 Web 面板）。`server.js`（后端，零依赖，只用 node 内置模块）+ `index.html`（单页前端）+ `selftest.js`（196 项自测）。6 页签：AI 配置 / 服务器设置 / 运行时控制 / 玩家管理 / 密码与令牌 / 日志 |
 | `docker-compose.example.yml` | 部署 compose 示例（含 `mcai-panel` + `mc-server` 服务，凭据已脱敏） |
 | `check_panel.cjs` | 无头浏览器（playwright-core）验证面板脚本 |
 | `gen_token.py` / `dump_server_cfg.py` | 部署辅助脚本 |
