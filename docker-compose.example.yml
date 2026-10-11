@@ -16,6 +16,8 @@ services:
     environment:
       EULA: "TRUE"
       TYPE: "FORGE"
+      # MC/Forge 版本必须与 minepilot-build 构建的 mcai_companion 模组支持版本一致；
+      # 上游同步后模组若升版，需同步改这两行（并改 minepilot-build/deploy-target.txt），否则模组加载失败。
       VERSION: "26.2"
       FORGE_VERSION: "65.0.0"
       MEMORY: "3G"
