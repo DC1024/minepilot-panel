@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0b1220">
 <meta property="og:type" content="website">
 <meta property="og:title" content="MinePilot Panel — 给 Minecraft AI 玩家一副「驾驶舱」">
-<meta property="og:description" content="零依赖 Web 面板（6 页签）+ 8 个上游补丁 + 181 项自测。让 OSS / 本地 / 第三方网关也能驱动无人值守的 MC AI 玩家。">
+<meta property="og:description" content="零依赖 Web 面板（6 页签）+ 8 个上游补丁 + 191 项自测。让 OSS / 本地 / 第三方网关也能驱动无人值守的 MC AI 玩家。">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230b1220'/%3E%3Cpath d='M22 40 50 24l28 16v20L50 76 22 60z' fill='none' stroke='%234ea1ff' stroke-width='7' stroke-linejoin='round'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%2322d3ee'/%3E%3C/svg%3E">
 <style>
@@ -339,7 +339,7 @@ footer a:hover{color:var(--accent2)}
     <div class="stats">
       <div class="stat"><b>8</b><small>上游补丁改进 · 分 4 组</small></div>
       <div class="stat"><b>6</b><small>面板页签</small></div>
-      <div class="stat"><b>181</b><small>项自测断言全绿</small></div>
+      <div class="stat"><b>191</b><small>项自测断言全绿</small></div>
       <div class="stat"><b>0</b><small>npm 依赖</small></div>
       <div class="stat"><b>66</b><small>个 properties 属性</small></div>
     </div>
@@ -714,7 +714,7 @@ footer a:hover{color:var(--accent2)}
       </div>
       <div class="card">
         <div class="ico"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
-        <h3>181 项自测</h3>
+        <h3>191 项自测</h3>
         <p><code>node mcai-panel/selftest.js</code>（需要 Node 22）。覆盖 TOML/properties 解析、注释保留、compose env 识别、离线 UUID 算法、命令白名单注入拒绝、<b>CRLF 回归</b>、掩码不泄露等。</p>
       </div>
     </div>
@@ -802,7 +802,7 @@ docker compose up -d mcai-panel
 docker restart mcai-panel
 
 <span class="c"># 自测（需要 Node 22）</span>
-node mcai-panel/selftest.js    <span class="c"># 181 项断言</span>
+node mcai-panel/selftest.js    <span class="c"># 191 项断言</span>
 </pre>
     </div>
 
@@ -867,22 +867,18 @@ node mcai-panel/selftest.js    <span class="c"># 181 项断言</span>
 
     <div class="tree">
 <span class="dir">minepilot-panel/</span>
-├── <span class="f">OUR-IMPROVEMENTS.md</span>            <span class="cm">← 先看这份：8 个补丁改进汇总</span>
-├── <span class="f">README.md</span>                       <span class="cm">交付物总览</span>
+├── <span class="f">README.md</span>                       <span class="cm">← 文档总入口（已合并全部文档）</span>
 ├── <span class="dir">mcai-panel/</span>                     <span class="cm">自研 Web 面板（零依赖）</span>
-│   ├── <span class="f">server.js</span>                   <span class="cm">后端 64.7 KB，只用 node 内置模块</span>
-│   ├── <span class="f">index.html</span>                  <span class="cm">单页前端 66.1 KB，内联 CSS/JS，无外部资源</span>
-│   └── <span class="f">selftest.js</span>                 <span class="cm">181 项自测</span>
-├── <span class="f">docker-compose.example.yml</span>      <span class="cm">部署示例（含 mcai-panel + mc-server）</span>
+│   ├── <span class="f">server.js</span>                   <span class="cm">后端，只用 node 内置模块</span>
+│   ├── <span class="f">index.html</span>                  <span class="cm">单页前端，内联 CSS/JS，无外部资源</span>
+│   └── <span class="f">selftest.js</span>                 <span class="cm">191 项自测</span>
+├── <span class="f">docker-compose.example.yml</span>      <span class="cm">部署示例（mc-server + mcai-panel + mod-sync）</span>
+├── <span class="f">Dockerfile</span>                      <span class="cm">面板镜像（已发布到 GHCR）</span>
+├── <span class="dir">.github/workflows/</span>              <span class="cm">publish-ghcr.yml：镜像构建发布</span>
 ├── <span class="f">check_panel.cjs</span>                 <span class="cm">无头浏览器验证脚本（playwright-core）</span>
 ├── <span class="f">gen_token.py</span> / <span class="f">dump_server_cfg.py</span>  <span class="cm">部署辅助脚本</span>
 ├── <span class="dir">shots/</span>                          <span class="cm">面板 6 页签验证截图</span>
-├── <span class="dir">site/</span>                           <span class="cm">本宣传页（GitHub Pages）</span>
-├── <span class="f">MinePilot-配置面板-使用说明.md</span>      <span class="cm">访问方式 · 6 页签 · 后端接口 · 安全</span>
-├── <span class="f">配置修改与权限说明.md</span>              <span class="cm">配置文件速查 + 权限模型</span>
-├── <span class="f">加入服务器指南.md</span>                  <span class="cm">真人客户端进服参数与排查</span>
-├── <span class="f">MinePilot-MCP修复与决策链路诊断报告.md</span>  <span class="cm">MCP 修复 + 决策链路根因（A/B/C 组）</span>
-└── <span class="f">进服失败-无效玩家数据-根因与修复.md</span>  <span class="cm">玩家名过短导致踢人的根因与补丁（D 组）</span>
+└── <span class="dir">docs/</span>                           <span class="cm">本宣传页（GitHub Pages 发布目录）</span>
     </div>
 
     <div class="grid g3" style="margin-top:24px">
@@ -910,8 +906,8 @@ node mcai-panel/selftest.js    <span class="c"># 181 项断言</span>
     </div>
     <div style="display:flex;gap:18px;flex-wrap:wrap">
       <a href="https://github.com/DC1024/minepilot-panel" target="_blank" rel="noopener">仓库</a>
-      <a href="https://github.com/DC1024/minepilot-panel/blob/main/OUR-IMPROVEMENTS.md" target="_blank" rel="noopener">8 个补丁改进</a>
-      <a href="https://github.com/DC1024/minepilot-panel/blob/main/MinePilot-%E9%85%8D%E7%BD%AE%E9%9D%A2%E6%9D%BF-%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E.md" target="_blank" rel="noopener">面板使用说明</a>
+      <a href="https://github.com/DC1024/minepilot-panel/blob/main/README.md" target="_blank" rel="noopener">文档总入口（含 8 个补丁改进）</a>
+      <a href="https://github.com/DC1024/minepilot-panel/blob/main/docker-compose.example.yml" target="_blank" rel="noopener">部署示例 compose</a>
     </div>
   </div>
 </footer>
