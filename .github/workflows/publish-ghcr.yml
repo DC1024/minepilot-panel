@@ -1,0 +1,73 @@
+name: Publish MinePilot images to GHCR
+
+# 把部署镜像发布到 GitHub Container Registry (ghcr.io)，国内拉取不再依赖 Docker Hub。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # 每月 1 号 02:00 UTC 刷新一次第三方基础镜像镜像
+    - cron: "0 2 1 * *"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: dc1024
+
+jobs:
+  # ------------------------------------------------------------------
+  # 面板自有镜像：itzg 之外的本项目代码，每次 push main 重建
+  # ------------------------------------------------------------------
+  panel:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Short SHA
+        id: vars
+        run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push panel image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/minepilot-panel:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/minepilot-panel:sha-${{ steps.vars.outputs.sha_short }}
+
+  # ------------------------------------------------------------------
+  # 镜像第三方基础镜像 itzg/minecraft-server:java25 -> GHCR
+  # 仅在手动触发或月度计划时执行，避免每次 push 都拉取大镜像
+  # ------------------------------------------------------------------
+  mirror-mc-server:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mirror itzg/minecraft-server:java25 to GHCR
+        run: |
+          docker pull itzg/minecraft-server:java25
+          docker tag itzg/minecraft-server:java25 ${{ env.REGISTRY }}/${{ env.OWNER }}/minepilot-panel-mc-server:java25
+          docker push ${{ env.REGISTRY }}/${{ env.OWNER }}/minepilot-panel-mc-server:java25

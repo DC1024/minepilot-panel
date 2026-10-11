@@ -54,3 +54,17 @@ python -m http.server 8080 --directory docs    # 然后打开 http://127.0.0.1:8
 
 注意仓库是公开的：`docs/assets/` 里的截图已经过脱敏（`docs/_tools/sanitize_shots.py`）——
 **真实面板令牌与内网 IP 已遮盖**，改动截图后请重跑该脚本再提交。
+
+## GHCR 镜像
+
+本部署的容器镜像已发布到 GitHub Container Registry，国内拉取无需依赖 Docker Hub：
+
+| 镜像 | 用途 |
+|------|------|
+| `ghcr.io/dc1024/minepilot-panel:latest` | MinePilot 配置面板（mcai-panel 网页面板） |
+| `ghcr.io/dc1024/minepilot-panel-mc-server:java25` | MC 服务端基础镜像（镜像自 `itzg/minecraft-server:java25`） |
+
+- 面板镜像在每次 push `main` 时由 `.github/workflows/publish-ghcr.yml` 自动构建推送。
+- 服务端基础镜像由同一工作流在**手动触发**或**每月计划**时从 Docker Hub 镜像到 GHCR。
+- `docker-compose.example.yml` 已改为使用上述 ghcr.io 镜像。
+- 首次拉取需登录 GHCR：`echo $GITHUB_TOKEN | docker login ghcr.io -u <用户名> --password-stdin`（私有仓库）；公开包可直接 `docker pull`。

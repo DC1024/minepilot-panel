@@ -4,9 +4,10 @@ services:
   #   - MinePilot 在服务端创建无账户 ServerPlayer，无需图形客户端/真人在线
   #   - 走服务端原生玩家路径，规避 mineflayer 的 PartialReadError / Illegal Move
   #   - Forge 必须锁 65.x：MinePilot 0.1.16 仅兼容 Forge 65.0.0 ~ 66.0.0(不含)
+  #   - 镜像已镜像到 GHCR（见 .github/workflows/publish-ghcr.yml），国内拉取更稳
   # ====================================================================
   mc-server:
-    image: itzg/minecraft-server:java25
+    image: ghcr.io/dc1024/minepilot-panel-mc-server:java25
     container_name: mc-server
     restart: unless-stopped
     environment:
@@ -79,18 +80,17 @@ services:
   # MinePilot 配置面板（网页版）
   #   - 改 config/mcai-companion.toml（模型/MCP/白名单/皮肤）+ API Key
   #   - 看状态/在线玩家/日志，一键「停止 → 写盘 → 启动」
-  #   - 复用本地已有的 node:22-alpine 镜像，零依赖、无需构建
+  #   - 镜像已发布到 GHCR（ghcr.io/dc1024/minepilot-panel:latest），内置 server.js 启动命令
   #   - 挂 docker.sock 仅用于 stop/start/inspect/logs（代码里只对 mc-server 操作）
   # ====================================================================
   mcai-panel:
-    image: node:22-alpine
+    image: ghcr.io/dc1024/minepilot-panel:latest
     container_name: mcai-panel
     restart: unless-stopped
     ports:
       - "25800:25800"
     volumes:
       - ./minecraft-data:/data
-      - ./mcai-panel:/app:ro
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       PANEL_PORT: "25800"
@@ -103,7 +103,7 @@ services:
       MC_UID: "1000"
       MC_GID: "1000"
       TZ: "Asia/Shanghai"
-    command: ["node", "/app/server.js"]
+    # command 已内置在镜像中，无需再挂源码或指定 command
 
 networks:
   default:
