@@ -1202,7 +1202,7 @@ function readConfig() {
 
 /* --------------------------------------------------------- 模型连通性 */
 
-function httpJson(url, { method = 'GET', headers = {}, body, timeout = 25000 } = {}) {
+function httpJsonOnce(url, { method = 'GET', headers = {}, body, timeout = 25000 } = {}) {
   return new Promise(resolve => {
     let u; try { u = new URL(url); } catch (e) { return resolve({ ok: false, url, error: 'bad url' }); }
     const mod = u.protocol === 'https:' ? https : http;
@@ -1226,23 +1226,45 @@ function httpJson(url, { method = 'GET', headers = {}, body, timeout = 25000 } =
   });
 }
 
+// 探测用：非 2xx（含超时/网络错误/5xx）自动重试一次。
+// 模型网关照常会有首次冷启动慢、或瞬时 5xx 的情况，一次偶发失败不该判死配置。
+async function httpJson(url, opts = {}) {
+  const { retries = 1, retryDelayMs = 800 } = opts;
+  let last = await httpJsonOnce(url, opts);
+  for (let i = 0; i < retries && !last.ok; i++) {
+    if (last.status && last.status < 500 && last.status !== 429) break; // 4xx 是配置问题，重试无意义
+    await new Promise(r => setTimeout(r, retryDelayMs));
+    const retried = await httpJsonOnce(url, opts);
+    retried.attempts = (last.attempts || 1) + 1;
+    last = retried;
+  }
+  return last;
+}
+
 async function testModel() {
   const c = readConfig();
   const key = readText(KEY_PATH, '').trim();
   const base = c.baseUrl.replace(/\/+$/, '');
   const auth = key ? { Authorization: 'Bearer ' + key } : {};
   const results = [];
-  results.push(await httpJson(base + '/models', { headers: auth, timeout: 15000 }));
-  results.push(await httpJson(base + '/chat/completions', {
-    method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: c.name, messages: [{ role: 'user', content: 'ping' }], max_tokens: 8 }),
-    timeout: 40000,
-  }));
-  results.push(await httpJson(base + '/responses', {
-    method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: c.name, input: 'ping', max_output_tokens: 16 }),
-    timeout: 40000,
-  }));
+  // /models 与 /chat/completions 是 MinePilot 依赖的路径；任一失败视为配置有问题。
+  // /responses 是 OpenAI Responses API，并非本模组运行的必需路径，仅作参考（optional）。
+  const probes = [
+    { label: 'models',   optional: false, url: base + '/models',
+      opts: { headers: auth, timeout: 20000 } },
+    { label: 'chat',     optional: false, url: base + '/chat/completions',
+      opts: { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model: c.name, messages: [{ role: 'user', content: 'ping' }], max_tokens: 8 }),
+              timeout: 60000 } },
+    { label: 'responses', optional: true, url: base + '/responses',
+      opts: { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model: c.name, input: 'ping', max_output_tokens: 16 }),
+              timeout: 60000 } },
+  ];
+  for (const p of probes) {
+    const r = await httpJson(p.url, p.opts);
+    results.push({ label: p.label, optional: p.optional, ...r });
+  }
   return { config: { baseUrl: c.baseUrl, name: c.name }, keyPresent: !!key, results };
 }
 
@@ -1485,6 +1507,7 @@ module.exports = {
   listComposeEnv, listComposeEnvAll, setComposeEnv, disableComposeEnv, managedProps,
   readServerProps, writePropsFile, offlineUuid, buildRconCommand, runRconAction, queryGamerules,
   rconBulk,
+  httpJson, httpJsonOnce, testModel,
   readOps, readWhitelist, readBanned, changePanelToken, changeRconPassword,
   paths: { TOML_PATH, KEY_PATH, PROPS_PATH, OPS_PATH, WHITELIST_PATH, BANNED_PATH, COMPOSE_PATH },
 };

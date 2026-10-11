@@ -550,6 +550,57 @@ check('空消息被拒', threw);
   check('rcon.password 不出现在任何 API 响应里',
     JSON.stringify(P.readServerProps()).indexOf('NewRconPw_2026') === -1);
 
+  // ---- 20. 模型探测重试语义（httpJson / testModel）----
+  // 用本地 HTTP mock：可编排「第 N 次返回什么」，验证超时/5xx 会重试、4xx 不重试。
+  await (async () => {
+    const http = require('node:http');
+    let hits = 0;
+    let plan = [];   // 每次请求消费一个 {status, delayMs}
+    const srv = http.createServer((req, res) => {
+      hits++;
+      const step = plan.shift() || { status: 200 };
+      const reply = () => { res.writeHead(step.status, { 'Content-Type': 'application/json' }); res.end('{"ok":true}'); };
+      if (step.delayMs) setTimeout(reply, step.delayMs); else reply();
+    });
+    await new Promise(r => srv.listen(0, '127.0.0.1', r));
+    const port = srv.address().port;
+    const url = `http://127.0.0.1:${port}/x`;
+
+    console.log('--- 20. 模型探测重试语义 ---');
+
+    // a) 首次 500 → 应重试一次并成功（hits 应为 2）
+    hits = 0; plan = [{ status: 500 }, { status: 200 }];
+    let r = await P.httpJson(url, { timeout: 5000 });
+    check('5xx 自动重试并成功', r.ok === true && hits === 2 && r.attempts === 2,
+      `ok=${r.ok} hits=${hits} attempts=${r.attempts}`);
+
+    // b) 首次 401 → 配置错误，不应重试（hits 应为 1）
+    hits = 0; plan = [{ status: 401 }, { status: 200 }];
+    r = await P.httpJson(url, { timeout: 5000 });
+    check('4xx 不重试', r.ok === false && r.status === 401 && hits === 1,
+      `ok=${r.ok} status=${r.status} hits=${hits}`);
+
+    // c) 首次超时 → 应重试（hits 应为 2）
+    hits = 0; plan = [{ status: 200, delayMs: 400 }, { status: 200 }];
+    r = await P.httpJson(url, { timeout: 120 });
+    check('超时自动重试', r.ok === true && hits === 2 && r.attempts === 2,
+      `ok=${r.ok} hits=${hits} attempts=${r.attempts}`);
+
+    // d) 模拟用户遇到的场景：/responses 持续超时 → ok=false，已重试 2 次
+    hits = 0; plan = [{ status: 200, delayMs: 300 }, { status: 200, delayMs: 300 }];
+    r = await P.httpJson(url, { timeout: 80 });
+    check('持续超时→失败但已重试', r.ok === false && hits === 2 && /^timeout/.test(r.error || ''),
+      `ok=${r.ok} hits=${hits} error=${r.error}`);
+
+    // e) retries:0 时只请求一次（用于不该重试的探测）
+    hits = 0; plan = [{ status: 503 }];
+    r = await P.httpJson(url, { timeout: 5000, retries: 0 });
+    check('retries:0 只请求一次', r.ok === false && hits === 1,
+      `ok=${r.ok} hits=${hits}`);
+
+    await new Promise(res => srv.close(res));
+  })();
+
   fs.rmSync(tmp, { recursive: true, force: true });
   mock.close();
   console.log('\n结果: ' + pass + ' passed, ' + fail + ' failed');

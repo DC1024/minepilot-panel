@@ -1376,7 +1376,7 @@ $('startOnly').onclick = () => doAction('start');
 $('testBtn').onclick = async () => {
   const out = $('testOut');
   out.style.display = 'block';
-  out.textContent = '正在探测…（每个请求最多 40s）';
+  out.textContent = '正在探测…（每个请求最多 60s，失败自动重试一次）';
   try{
     const r = await api('/api/test-model', { method:'POST' });
     const lines = [];
@@ -1384,12 +1384,21 @@ $('testBtn').onclick = async () => {
     lines.push('模型: ' + r.result.config.name + '   密钥: ' + (r.result.keyPresent ? '已读取' : '缺失'));
     lines.push('');
     for (const x of r.result.results){
-      lines.push('[' + (x.ok ? 'OK ' : 'FAIL') + '] ' + (x.status || '-') + '  '
-        + (x.ms ? x.ms + 'ms  ' : '') + x.url);
+      // 必需路径失败 = FAIL；可选路径失败 = SKIP（不判死配置）
+      const tag = x.ok ? 'OK ' : (x.optional ? 'SKIP' : 'FAIL');
+      lines.push('[' + tag + '] ' + (x.status || '-') + '  '
+        + (x.ms ? x.ms + 'ms  ' : '') + x.url
+        + (x.optional ? '   (可选)' : ''));
       if (x.error) lines.push('        ' + x.error);
       if (x.snippet) lines.push('        ' + x.snippet.replace(/\s+/g, ' ').slice(0, 300));
       lines.push('');
     }
+    const hard = r.result.results.filter(x => !x.ok && !x.optional);
+    lines.push(hard.length
+      ? '结论: 有 ' + hard.length + ' 项必需路径失败，请检查配置/密钥。'
+      : '结论: 必需路径（/models、/chat/completions，即模组实际使用）均正常。'
+        + (r.result.results.some(x => !x.ok && x.optional) ? ' /responses 为可选项，失败不影响运行。' : ''));
+    lines.push('注: MinePilot 运行时走 /chat/completions；/responses 仅作参考，可不支持。');
     out.textContent = lines.join('\n');
   }catch(e){ out.textContent = '探测失败: ' + e.message; }
 };
