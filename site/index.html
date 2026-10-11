@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MinePilot Panel — 给 Minecraft AI 玩家一副「驾驶舱」</title>
+<meta name="description" content="自研零依赖 Web 配置面板 + 对上游 MinePilot 的 8 个补丁改进：让弱 provider（AMD / vLLM / Ollama / LM Studio）也能跑通无人值守的 Minecraft AI 玩家闭环，完成状态由服务端验证。">
+<meta name="theme-color" content="#0b1220">
+<meta property="og:type" content="website">
+<meta property="og:title" content="MinePilot Panel — 给 Minecraft AI 玩家一副「驾驶舱」">
+<meta property="og:description" content="零依赖 Web 面板（6 页签）+ 8 个上游补丁 + 181 项自测。让 OSS / 本地 / 第三方网关也能驱动无人值守的 MC AI 玩家。">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230b1220'/%3E%3Cpath d='M22 40 50 24l28 16v20L50 76 22 60z' fill='none' stroke='%234ea1ff' stroke-width='7' stroke-linejoin='round'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%2322d3ee'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0b1220; --panel:#121b2e; --panel2:#0e1728; --line:#22304a;
+  --txt:#e6edf7; --dim:#8fa3c0; --dim2:#6f86a8; --accent:#4ea1ff; --accent2:#22d3ee;
+  --ok:#34d399; --warn:#fbbf24; --err:#f87171; --radius:14px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{
+  margin:0;background:var(--bg);color:var(--txt);font:16px/1.7 var(--sans);
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(1100px 620px at 8% -8%,#16233c 0%,transparent 58%),
+    radial-gradient(900px 520px at 102% 2%,#0d3040 0%,transparent 52%),
+    radial-gradient(700px 700px at 50% 110%,#131f38 0%,transparent 60%);
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.32;
+  background-image:linear-gradient(rgba(78,161,255,.055) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(78,161,255,.055) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(circle at 50% 24%,#000 0%,transparent 78%);
+  -webkit-mask-image:radial-gradient(circle at 50% 24%,#000 0%,transparent 78%);
+}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--accent2)}
+code{font-family:var(--mono);font-size:.88em;background:#0a1120;border:1px solid var(--line);
+  border-radius:6px;padding:2px 6px;color:#a9c7ee}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+
+/* ---------- nav ---------- */
+header.nav{position:sticky;top:0;z-index:60;backdrop-filter:blur(14px);
+  background:rgba(11,18,32,.82);border-bottom:1px solid rgba(34,48,74,.75)}
+header.nav .in{max-width:1180px;margin:0 auto;padding:0 24px;height:64px;
+  display:flex;align-items:center;gap:26px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px;color:var(--txt)}
+.logo:hover{color:var(--txt)}
+.logo svg{flex:0 0 auto}
+.logo b{font-weight:700}
+.logo span{color:var(--accent2);font-weight:700}
+nav.links{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+nav.links a{color:var(--dim);padding:7px 13px;border-radius:9px;font-size:14px;transition:.16s}
+nav.links a:hover{color:var(--txt);background:#16223a}
+.nav .btn{margin-left:6px}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:10px;padding:11px 20px;
+  font-size:14.5px;font-weight:600;border:1px solid var(--line);background:#1b2a44;color:var(--txt);
+  transition:.18s;white-space:nowrap;cursor:pointer}
+.btn:hover{background:#203254;border-color:var(--accent);color:var(--txt);transform:translateY(-1px)}
+.btn.primary{background:linear-gradient(135deg,#2563eb,#0891b2);border:none;
+  box-shadow:0 8px 24px -8px rgba(37,99,235,.75)}
+.btn.primary:hover{filter:brightness(1.13);color:#fff}
+.btn.ghost{background:transparent}
+.btn.ghost:hover{background:#16223a}
+.btn.sm{padding:8px 14px;font-size:13.5px}
+
+/* ---------- hero ---------- */
+.hero{padding:88px 0 72px;position:relative}
+.pill{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line);
+  background:rgba(18,27,46,.72);border-radius:999px;padding:6px 15px 6px 11px;
+  font-size:13px;color:var(--dim);margin-bottom:26px}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);
+  box-shadow:0 0 0 3px rgba(52,211,153,.16);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.hero h1{font-size:clamp(2.15rem,5.1vw,3.75rem);line-height:1.14;margin:0 0 20px;
+  font-weight:800;letter-spacing:-.02em}
+.hero h1 .g{background:linear-gradient(112deg,#4ea1ff 0%,#22d3ee 52%,#34d399 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero .lede{font-size:clamp(1.02rem,2vw,1.2rem);color:var(--dim);max-width:62ch;margin:0 0 32px}
+.hero .lede b{color:var(--txt);font-weight:650}
+.cta{display:flex;gap:13px;flex-wrap:wrap;margin-bottom:52px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.stat{background:linear-gradient(180deg,var(--panel),var(--panel2));padding:20px 22px}
+.stat b{display:block;font-size:1.85rem;font-weight:750;letter-spacing:-.02em;line-height:1;
+  margin-bottom:7px;
+  background:linear-gradient(120deg,#7cc0ff,#22d3ee);-webkit-background-clip:text;
+  background-clip:text;-webkit-text-fill-color:transparent}
+.stat small{color:var(--dim);font-size:12.8px;letter-spacing:.2px;display:block;line-height:1.45}
+
+/* ---------- section ---------- */
+section{padding:78px 0;border-top:1px solid rgba(34,48,74,.55)}
+.eyebrow{font:600 12.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--accent2);margin-bottom:14px}
+h2.h{font-size:clamp(1.6rem,3.4vw,2.3rem);margin:0 0 14px;font-weight:750;letter-spacing:-.015em}
+p.sub{color:var(--dim);max-width:74ch;margin:0 0 40px;font-size:1.03rem}
+p.sub b{color:var(--txt)}
+
+/* ---------- cards ---------- */
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(288px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(228px,1fr))}
+.card{background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--line);border-radius:var(--radius);padding:24px;position:relative;
+  transition:.2s}
+.card:hover{border-color:#31456a;transform:translateY(-2px);
+  box-shadow:0 20px 44px -22px rgba(0,0,0,.85)}
+.card h3{margin:0 0 10px;font-size:1.09rem;font-weight:680;display:flex;align-items:center;gap:10px}
+.card p{margin:0;color:var(--dim);font-size:14.6px}
+.card .ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+  background:linear-gradient(135deg,rgba(78,161,255,.17),rgba(34,211,238,.12));
+  border:1px solid #24405f;margin-bottom:15px}
+.card .ico svg{width:19px;height:19px;stroke:var(--accent2);fill:none;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- flow diagram ---------- */
+.flow{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  background:linear-gradient(180deg,var(--panel),var(--panel2));max-width:100%}
+.flow .top{display:flex;align-items:center;gap:10px;padding:13px 18px;
+  border-bottom:1px solid var(--line);background:rgba(10,17,32,.6)}
+.flow .top .d{width:9px;height:9px;border-radius:50%;background:var(--err);opacity:.85}
+.flow .top .d:nth-child(2){background:var(--warn)}
+.flow .top .d:nth-child(3){background:var(--ok)}
+.flow .top span{margin-left:10px;font:12.5px var(--mono);color:var(--dim2)}
+.flow .body{padding:30px 18px;overflow-x:auto}
+.lane{display:flex;align-items:stretch;gap:0;margin:0 auto;width:max-content}
+.node{width:140px;padding:15px 11px;border:1px solid var(--line);border-radius:12px;
+  background:#0a1120;text-align:center}
+.node .t{font-size:13.2px;font-weight:650;line-height:1.35}
+.node .s{font:10.8px var(--mono);color:var(--dim2);margin-top:6px;word-break:break-word}
+.node.hl{border-color:#2b6d86;background:linear-gradient(180deg,#0e2434,#0a1120)}
+.arrow{display:grid;place-items:center;width:32px;color:var(--dim2);font-size:16px;flex:0 0 auto}
+@media (min-width:900px){
+  /* 6 nodes x 148 + 5 arrows x 40 + 2 x 18 body padding = 1124 <= 1132 content width */
+  .node{width:148px;padding:16px 12px}
+  .arrow{width:40px;font-size:18px}
+}
+.loop{margin-top:22px;text-align:center;font:12.5px var(--mono);color:var(--dim);
+  border-top:1px dashed #26364f;padding-top:16px}
+.loop b{color:var(--ok);font-weight:600}
+
+/* ---------- patches ---------- */
+.group{margin-bottom:44px}
+.group:last-child{margin-bottom:0}
+.ghead{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+.ghead .tag{flex:0 0 auto;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  font:700 15px var(--mono);color:#0b1220;background:linear-gradient(135deg,#4ea1ff,#22d3ee)}
+.ghead h3{margin:0;font-size:1.24rem;font-weight:700}
+.ghead .meta{margin-left:auto;font:12.4px var(--mono);color:var(--dim2)}
+.imp{background:linear-gradient(180deg,rgba(18,27,46,.92),rgba(14,23,40,.92));
+  border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;
+  padding:22px 24px;margin-bottom:16px}
+.imp:last-child{margin-bottom:0}
+.imp.a{border-left-color:#4ea1ff}
+.imp.b{border-left-color:#22d3ee}
+.imp.c{border-left-color:#fbbf24}
+.imp.d{border-left-color:#34d399}
+.imp h4{margin:0 0 12px;font-size:1.02rem;font-weight:680;display:flex;gap:11px;
+  align-items:baseline;flex-wrap:wrap}
+.sha{font:11.6px var(--mono);color:var(--accent2);background:#0a1120;border:1px solid var(--line);
+  border-radius:6px;padding:2px 8px}
+.imp .lbl{font:600 11.6px var(--mono);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--dim2);display:block;margin:14px 0 5px}
+.imp p{margin:0;color:#c3d2e8;font-size:14.7px}
+.imp p b{color:#fff;font-weight:650}
+.imp .files{font:11.9px var(--mono);color:var(--dim2);margin-top:12px;
+  border-top:1px dashed #26364f;padding-top:11px;word-break:break-all}
+.effect{display:inline-block;margin-top:14px;font-size:14.2px;color:var(--ok);
+  background:rgba(52,211,153,.085);border:1px solid rgba(52,211,153,.28);
+  border-radius:9px;padding:9px 14px}
+.effect b{color:#6ee7b7}
+
+/* ---------- tabs showcase ---------- */
+.tabbar{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
+.tabbar button{background:transparent;border:1px solid var(--line);color:var(--dim);
+  padding:9px 16px;border-radius:10px;font-size:14px;cursor:pointer;font-family:inherit;
+  transition:.16s}
+.tabbar button:hover{color:var(--txt);background:#16223a}
+.tabbar button[aria-selected=true]{background:linear-gradient(135deg,#1e3a6b,#0d3f52);
+  color:#fff;border-color:#2b4f7d;font-weight:600}
+.panel-view{display:none}
+.panel-view.on{display:block;animation:fade .22s ease}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.detail{display:grid;grid-template-columns:1fr;gap:16px;margin-top:20px}
+.detail ul{margin:0;padding-left:0;list-style:none;columns:2;column-gap:34px}
+.detail li{color:var(--dim);font-size:14.5px;padding:6px 0 6px 24px;position:relative;
+  break-inside:avoid}
+.detail li::before{content:"";position:absolute;left:0;top:15px;width:7px;height:7px;
+  border-radius:2px;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.detail li b{color:var(--txt);font-weight:640}
+
+/* ---------- security table ---------- */
+.tbl{width:100%;border-collapse:collapse;border:1px solid var(--line);
+  border-radius:var(--radius);overflow:hidden;font-size:14.4px}
+.tbl th,.tbl td{padding:14px 18px;text-align:left;border-bottom:1px solid var(--line);
+  vertical-align:top}
+.tbl th{background:#101a2c;color:var(--dim);font-size:12.6px;font-weight:650;
+  letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td:first-child{color:var(--txt);font-weight:600;white-space:nowrap}
+.tbl td{color:var(--dim)}
+.tbl tr:hover td{background:rgba(22,34,58,.5)}
+
+/* ---------- quickstart ---------- */
+.qs{background:#080e1c;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.qs .bar{display:flex;align-items:center;gap:9px;padding:12px 16px;
+  border-bottom:1px solid var(--line);background:rgba(10,17,32,.65)}
+.qs .bar .d{width:9px;height:9px;border-radius:50%;background:var(--err);opacity:.8}
+.qs .bar .d:nth-child(2){background:var(--warn)}
+.qs .bar .d:nth-child(3){background:var(--ok)}
+.qs .bar span{margin-left:8px;font:12.4px var(--mono);color:var(--dim2)}
+.qs pre{margin:0;padding:20px 22px;overflow-x:auto;font:13.2px/1.75 var(--mono);color:#c3d8f2}
+.qs pre .c{color:#5f7699}
+.qs pre .k{color:#f0a3c0}
+.qs pre .s{color:#7ee0c0}
+.steps{counter-reset:s;display:grid;gap:14px;margin-top:26px}
+.step{counter-increment:s;position:relative;padding:18px 22px 18px 62px;
+  background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:12px}
+.step::before{content:counter(s);position:absolute;left:20px;top:17px;width:26px;height:26px;
+  border-radius:8px;display:grid;place-items:center;font:700 13px var(--mono);color:#0b1220;
+  background:linear-gradient(135deg,#4ea1ff,#22d3ee)}
+.step b{display:block;font-size:15px;margin-bottom:5px}
+.step p{margin:0;color:var(--dim);font-size:14.4px}
+
+/* ---------- gallery ---------- */
+.gal{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:20px}
+@media (max-width:560px){.gal{grid-template-columns:1fr}}
+.shot{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  background:#0a1120;transition:.2s}
+.shot:hover{border-color:#31456a;transform:translateY(-2px)}
+.shot .thumb{height:300px;overflow:hidden;position:relative;background:#080e1c}
+.shot .thumb img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+.shot .thumb::after{content:"";position:absolute;inset:auto 0 0 0;height:70px;
+  background:linear-gradient(transparent,rgba(10,17,32,.97))}
+.shot .cap{padding:15px 18px}
+.shot .cap b{display:block;font-size:14.6px;margin-bottom:4px}
+.shot .cap small{color:var(--dim2);font-size:12.8px}
+
+/* ---------- tree ---------- */
+.tree{background:#080e1c;border:1px solid var(--line);border-radius:var(--radius);
+  padding:22px 24px;font:13.1px/2 var(--mono);color:var(--dim);overflow-x:auto}
+.tree .dir{color:var(--accent2)}
+.tree .f{color:#c3d8f2}
+.tree .cm{color:#5f7699}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid rgba(34,48,74,.6);padding:44px 0 60px;color:var(--dim2);
+  font-size:13.6px}
+footer .in{display:flex;gap:22px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+footer a{color:var(--dim)}
+footer a:hover{color:var(--accent2)}
+
+/* ---------- responsive ---------- */
+@media (max-width:820px){
+  header.nav .in{height:auto;padding:12px 20px;flex-wrap:wrap;gap:12px}
+  nav.links{display:none}
+  .hero{padding:52px 0 48px}
+  section{padding:56px 0}
+  .detail ul{columns:1}
+  .tbl{font-size:13.4px}
+  .tbl th,.tbl td{padding:11px 13px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+/* Scroll-reveal. The hidden state is applied ONLY by JS, so with JS disabled or
+   an observer that never fires the content stays fully visible. */
+.reveal{opacity:0;transform:translateY(14px);
+  transition:opacity .5s ease,transform .5s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none}}
+@media print{.reveal{opacity:1!important;transform:none!important}}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="in">
+    <a class="logo" href="#top">
+      <svg width="26" height="26" viewBox="0 0 100 100" aria-hidden="true">
+        <rect width="100" height="100" rx="22" fill="#0b1220" stroke="#22304a"/>
+        <path d="M22 40 50 24l28 16v20L50 76 22 60z" fill="none" stroke="#4ea1ff" stroke-width="7" stroke-linejoin="round"/>
+        <circle cx="50" cy="50" r="7" fill="#22d3ee"/>
+      </svg>
+      <b>MinePilot</b> <span>Panel</span>
+    </a>
+    <nav class="links">
+      <a href="#what">是什么</a>
+      <a href="#flow">闭环</a>
+      <a href="#patches">8 个补丁</a>
+      <a href="#panel">面板</a>
+      <a href="#security">安全</a>
+      <a href="#start">上手</a>
+      <a href="#shots">截图</a>
+    </nav>
+    <a class="btn sm" href="https://github.com/DC1024/minepilot-panel" target="_blank" rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.8.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.67.07-.52.28-.88.51-1.08-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      GitHub
+    </a>
+  </div>
+</header>
+
+<a id="top"></a>
+
+<!-- ================= HERO ================= -->
+<div class="hero">
+  <div class="wrap">
+    <span class="pill"><span class="dot"></span>线上已验证 · MC 26.2 / Forge 65.0.0 / Java 25</span>
+
+    <h1>给 Minecraft AI 玩家<br>一副真正的<span class="g">驾驶舱</span></h1>
+
+    <p class="lede">
+      上游 <b>MinePilot</b> 能在服务端跑出一个无人值守的 AI 玩家 <b>MCAI</b>，却<b>没有任何 Web 面板</b>，
+      而且在不严格支持 <code>json_schema</code> 的网关上会变成「身体在、无大脑」。
+      这个仓库收录我们做的 <b>8 个补丁改进</b>、一套<b>零依赖自研配置面板</b>，
+      以及全部交付文档、compose 示例与验证脚本。
+    </p>
+
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/DC1024/minepilot-panel" target="_blank" rel="noopener">
+        查看仓库
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h7v7"/><path d="M13 3 4 12"/></svg>
+      </a>
+      <a class="btn" href="#patches">8 个补丁改进</a>
+      <a class="btn ghost" href="#start">快速上手</a>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b>8</b><small>上游补丁改进 · 分 4 组</small></div>
+      <div class="stat"><b>6</b><small>面板页签</small></div>
+      <div class="stat"><b>181</b><small>项自测断言全绿</small></div>
+      <div class="stat"><b>0</b><small>npm 依赖</small></div>
+      <div class="stat"><b>66</b><small>个 properties 属性</small></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= WHAT ================= -->
+<section id="what">
+  <div class="wrap">
+    <div class="eyebrow">What it is</div>
+    <h2 class="h">一个「无人值守、自主活动」的 Minecraft AI 玩家</h2>
+    <p class="sub">
+      MinePilot Forge 模组在服务端内建一个<b>无账户 headless ServerPlayer</b>（叫 <code>MCAI</code>）——
+      不需要图形客户端、不需要真人常驻。它自己在世界里跑、砍树、合成、战斗、退避。
+      而本仓库解决的是它<b>落地到真实网关</b>时暴露出来的一连串问题。
+    </p>
+
+    <div class="grid g4">
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></div>
+        <h3>服务端</h3>
+        <p><code>itzg/minecraft-server</code><br>TYPE=FORGE · VERSION=26.2<br>FORGE_VERSION=65.0.0 · Java 25</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l2.8 2.8M16.2 16.2 19 19M19 5l-2.8 2.8M7.8 16.2 5 19"/></svg></div>
+        <h3>模型</h3>
+        <p>AMD Radeon 网关<br><code>Qwen3.8-27B</code><br>经 <code>RESPONSES/JSON_OBJECT</code> 契约驱动</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <h3>闭环</h3>
+        <p>MCAI 在线 → 收到目标 → LLM 决策 → 执行技能（移动/砍树/合成/放置）→ <b>服务端校验完成</b></p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg></div>
+        <h3>最通用的一条</h3>
+        <p>「输出契约降级」+「无 schema 契约内联决策 schema」对 <b>任何</b> 不严格支持 <code>json_schema</code> 的 OSS / 本地 / 第三方网关都通用。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FLOW ================= -->
+<section id="flow">
+  <div class="wrap">
+    <div class="eyebrow">Architecture</div>
+    <h2 class="h">端到端闭环：从一条指令到服务端验收</h2>
+    <p class="sub">
+      面板是<b>旁路</b>——它只碰配置文件、RCON 与 Docker API，不碰 MC 进程。
+      摘掉它（<code>docker compose rm -sf mcai-panel</code>）服务器完全不受影响。
+    </p>
+
+    <div class="flow">
+      <div class="top"><i class="d"></i><i class="d"></i><i class="d"></i><span>deployment topology</span></div>
+      <div class="body">
+        <div class="lane">
+          <div class="node"><div class="t">管理员浏览器</div><div class="s">:25800 + token</div></div>
+          <div class="arrow">→</div>
+          <div class="node hl"><div class="t">mcai-panel</div><div class="s">node:22-alpine · 0 依赖</div></div>
+          <div class="arrow">→</div>
+          <div class="node"><div class="t">docker.sock</div><div class="s">Engine API</div></div>
+          <div class="arrow">→</div>
+          <div class="node"><div class="t">mc-server</div><div class="s">Forge 26.2</div></div>
+          <div class="arrow">→</div>
+          <div class="node hl"><div class="t">MCAI (headless)</div><div class="s">mcai_companion</div></div>
+          <div class="arrow">→</div>
+          <div class="node"><div class="t">LLM 网关</div><div class="s">JSON_OBJECT</div></div>
+        </div>
+        <div class="loop">
+          panel 同时经 <b>RCON</b> 下发天气 / 时间 / gamerule / OP / 白名单 → <b>service-validated</b> 完成状态由服务端判定，而非模型自述
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PATCHES ================= -->
+<section id="patches">
+  <div class="wrap">
+    <div class="eyebrow">Our improvements</div>
+    <h2 class="h">对上游 MinePilot 的 8 个补丁改进</h2>
+    <p class="sub">
+      按「解决的因果链」分四组，<b>每条都对应一个线上真实故障</b>。
+      这是本仓库对 GitHub 用户最有价值的部分。
+    </p>
+
+    <!-- A -->
+    <div class="group">
+      <div class="ghead">
+        <div class="tag">A</div>
+        <h3>输出契约降级 —— 让「弱 provider」也能用</h3>
+        <div class="meta">2 commits</div>
+      </div>
+
+      <div class="imp a">
+        <h4>修复 capability 拒绝识别 <span class="sha">4fcbd35</span></h4>
+        <span class="lbl">问题</span>
+        <p>
+          <code>ProviderErrorClassifier</code> 在「provider 拒绝能力时若没带 <code>param</code> 字段」就判定失败。
+          原 <code>mentionsField</code> 是<b>大小写敏感</b>且要求非标识符边界，<code>json_schema</code>
+          对不上消息里的「JSON schema」，导致拒绝<b>永远无法被识别</b>。
+        </p>
+        <div class="files">ProviderErrorClassifier.java</div>
+      </div>
+
+      <div class="imp a">
+        <h4>探测被拒时继续协商更弱契约 <span class="sha">bfe8833</span></h4>
+        <span class="lbl">问题</span>
+        <p>
+          <code>JdkProviderCapabilityProbe</code> 探测到输出契约被拒时<b>整体终止</b>，
+          直接变成 <code>startup_model_unavailable_invalid_request</code> —— bot「身体在、无大脑」。
+        </p>
+        <span class="lbl">改法</span>
+        <p>
+          不再终止，而是 <code>break</code> 继续试下一个更弱的契约：
+          <code>JSON_SCHEMA → JSON_OBJECT → PLAIN_JSON → PLAIN</code>，全部失败才算 failed。
+        </p>
+        <span class="effect">净效果：能协商降级到 <b>RESPONSES/JSON_OBJECT</b> 契约 → <code>ready=true</code></span>
+        <div class="files">JdkProviderCapabilityProbe.java</div>
+      </div>
+    </div>
+
+    <!-- B -->
+    <div class="group">
+      <div class="ghead">
+        <div class="tag">B</div>
+        <h3>无 schema 契约也把决策 schema 喂给模型</h3>
+        <div class="meta">1 commit · 最关键</div>
+      </div>
+
+      <div class="imp b">
+        <h4>内联决策 schema 进 instructions <span class="sha">d5eefe6</span></h4>
+        <span class="lbl">问题</span>
+        <p>
+          <code>JSON_OBJECT</code> / <code>PLAIN_JSON</code> 契约<b>原本根本不会把 schema 发给模型</b>
+          （只有 <code>JSON_SCHEMA</code> / <code>FORCED_FUNCTION</code> 会）。模型连字段名都不知道，只能瞎猜
+          → 每次 <code>MALFORMED_RESPONSE</code> / <code>missing_fields</code> → <code>SAFE_IDLE</code>。
+          这才是<b>「目标被接受却立刻不执行」的真根因</b>。
+        </p>
+        <span class="lbl">改法</span>
+        <p>
+          <code>ModelRequestFactory</code> 新增 <code>contractInstruction()</code>：当契约是
+          <code>JSON_OBJECT</code> / <code>PLAIN_JSON</code> 时，把 <code>codec.schema(context)</code>
+          （<b>含当次可用 skill 枚举</b>）序列化<b>内联进 instructions</b>；Responses 与 Chat Completions 两条线都改。
+        </p>
+        <span class="effect">净效果：<code>Live-model accepted decision</code> → bot 真的完成 <code>gather_nearby_wood</code> 拿到木头 → <b>端到端首个自主闭环跑通</b></span>
+        <div class="files">ModelRequestFactory.java</div>
+      </div>
+    </div>
+
+    <!-- C -->
+    <div class="group">
+      <div class="ghead">
+        <div class="tag">C</div>
+        <h3>决策质量 + 技能失败诊断</h3>
+        <div class="meta">4 commits</div>
+      </div>
+
+      <div class="imp c">
+        <h4>技能失败码落日志 <span class="sha">0435140</span></h4>
+        <span class="lbl">问题</span>
+        <p>失败只有一个笼统结果，拿不到真实原因。</p>
+        <span class="lbl">改法</span>
+        <p>
+          <code>BrainOrchestrator</code> 把 <code>SkillFailure.code</code> 落日志（挂在
+          <code>-Dmcai.liveModelTest=true</code> 诊断开关下）。
+        </p>
+        <span class="effect">净效果：拿到真实失败码 <code>use_block.action_target_occluded</code>，成为下面两条的修复依据</span>
+        <div class="files">BrainOrchestrator.java</div>
+      </div>
+
+      <div class="imp c">
+        <h4>use_block 前置 equip_item + 同面 look_at <span class="sha">f482154</span> <span class="sha">d8a81b8</span></h4>
+        <span class="lbl">根因</span>
+        <p>
+          <code>isBlockUnderCrosshair()</code> 用 <code>getViewVector</code> 做 raycast，
+          命中点必须落在 <code>target.hitPoint()</code> <b>0.5 格内且 face 完全一致</b>，
+          否则报 <code>action_target_occluded</code>。
+        </p>
+        <span class="lbl">改法</span>
+        <p>
+          <code>FairInteractionSkills</code> 的指南要求<b>先 <code>equip_item</code></b>，
+          且明确「只作用于准星下那个面，必须先 <code>look_at</code> 同一方块面再 use_block」。
+        </p>
+        <div class="files">FairInteractionSkills.java</div>
+      </div>
+
+      <div class="imp c">
+        <h4>技能指南压回 14000 字符硬上限 <span class="sha">233fc67</span></h4>
+        <span class="lbl">问题</span>
+        <p>上一版改动撑爆了上限，<b>服务器启动崩溃循环</b>。</p>
+        <div class="files">FairInteractionSkills.java · skillGuide exceeds its bound: 14249 &gt; 14000 → 13986 → 13970</div>
+      </div>
+    </div>
+
+    <!-- D -->
+    <div class="group">
+      <div class="ghead">
+        <div class="tag">D</div>
+        <h3>真人陪玩不被误踢（明确的上游 bug）</h3>
+        <div class="meta">1 commit</div>
+      </div>
+
+      <div class="imp d">
+        <h4>名字规则不再校验真人玩家 <span class="sha">04770b4</span></h4>
+        <span class="lbl">问题</span>
+        <p>
+          MinePilot 的名字规则 <code>[A-Za-z0-9_]{3,16}</code> 把<b>每个真人玩家名</b>也拿去校验，
+          且登录监听器跑在 <code>PlayerList#placeNewPlayer</code> 内部 → 2 字符的名字（如 <code>DC</code>）
+          一进服抛 <code>name_too_short</code> → 被 <code>PrepareSpawnTask</code> 捕获 →
+          客户端只看到笼统的 <b><code>Invalid player data</code></b>。
+        </p>
+        <span class="lbl">改法</span>
+        <p>
+          <code>CompanionWorldData.rememberPlayerName()</code> 校验不过就<b>静默 return</b>（不再抛），
+          登录监听器整体包 <code>try/catch (RuntimeException)</code>。
+          版本串<b>故意不改</b> → 客户端无需换 jar。
+        </p>
+        <span class="effect">净效果：2 字符名真人玩家进服成功，不再被误踢</span>
+        <div class="files">ModelSetupModule.java · CompanionWorldData.java</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PANEL ================= -->
+<section id="panel">
+  <div class="wrap">
+    <div class="eyebrow">The panel</div>
+    <h2 class="h">从零自研的 Web 配置面板</h2>
+    <p class="sub">
+      源码里 <code>grep -rn "HttpServer\|WebSocket\|text/html\|/api/"</code> 只命中一个回环 MCP ——
+      <b>上游模组本身没有任何 Web 面板</b>。所以我们已经从零新建并部署了一个：
+      容器 <code>mcai-panel</code>，端口 <code>25800</code>，零依赖。
+    </p>
+
+    <div class="tabbar" role="tablist">
+      <button role="tab" aria-selected="true" data-view="v1">① AI 配置</button>
+      <button role="tab" aria-selected="false" data-view="v2">② 服务器设置</button>
+      <button role="tab" aria-selected="false" data-view="v3">③ 运行时控制</button>
+      <button role="tab" aria-selected="false" data-view="v4">④ 玩家管理</button>
+      <button role="tab" aria-selected="false" data-view="v5">⑤ 密码与令牌</button>
+      <button role="tab" aria-selected="false" data-view="v6">⑥ 日志</button>
+    </div>
+
+    <div class="panel-view on" id="v1">
+      <div class="grid g3">
+        <div class="card"><h3>模型连接</h3><p><code>baseUrl</code> / <code>name</code> / <code>soft</code> / <code>hard</code> —— 模型地址、模型名、软硬超时。</p></div>
+        <div class="card"><h3>API Key</h3><p>写 <code>secrets/mcai-api-key</code>，<b>只写不回显</b>，页面只显示字节数 / 字符数 / 权限位。</p></div>
+        <div class="card"><h3>MCP 控制口</h3><p><code>mcpEnabled</code> / <code>mcpPort</code> —— 是否开 MCP、监听端口。</p></div>
+        <div class="card"><h3>权限白名单</h3><p><code>chatAllowed</code> / <code>waypointAllowed</code>，<b>UUID 列表</b>，逗号分隔。</p></div>
+        <div class="card"><h3>皮肤</h3><p><code>skinAuto</code> 自动导入 <code>config/mcai-companion/skin.png</code>；<code>CLASSIC</code> / <code>SLIM</code>。</p></div>
+        <div class="card"><h3>动作按钮</h3><p><b>保存并重启（推荐）</b>（停止→写→启动，故意顺序，Forge 退出会刷回旧值）、仅保存、仅重启、停止/启动、<b>测试模型连接</b>。长任务走后台 job，一次一个。</p></div>
+      </div>
+    </div>
+
+    <div class="panel-view" id="v2">
+      <div class="detail">
+        <ul>
+          <li><b>66 个属性</b>分 5 组渲染，每个都是带类型的控件（布尔 / 枚举 / 数字 / 文本）</li>
+          <li><b>🔒 徽标 = compose 接管键</b>（7 个）：容器每次启动会用环境变量覆盖 properties</li>
+          <li>改接管键<b>必须勾「同步到 compose」</b>，面板同时改 properties 和 compose；不勾会被后端拒绝</li>
+          <li>或点「交给 properties 管」，把 compose 那个环境变量注释掉</li>
+          <li><b>密钥键不回显</b>：<code>rcon.password</code> 显示 <code>••••••••</code> 且禁用，改密走 ⑤ 页</li>
+          <li>底部：<b>保存属性并重启 / 仅保存属性</b>（+ 同步 compose 复选框）</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel-view" id="v3">
+      <div class="grid g3">
+        <div class="card"><h3>天气</h3><p>晴 / 雨 / 雷（可带秒数）。RCON 实时，无需重启。</p></div>
+        <div class="card"><h3>时间</h3><p><code>day</code> / <code>noon</code> / <code>night</code> / <code>midnight</code> / 自定义 tick / <b>冻结与恢复</b>。</p></div>
+        <div class="card"><h3>游戏模式</h3><p>选在线玩家一键切换（生存 / 创造 / 冒险 / 旁观）。</p></div>
+        <div class="card"><h3>难度</h3><p><code>peaceful</code> / <code>easy</code> / <code>normal</code> / <code>hard</code>。</p></div>
+        <div class="card"><h3>广播</h3><p>向全服玩家发消息（MC 原生 <code>say</code>，会出现在聊天与玩家聊天栏）。</p></div>
+        <div class="card"><h3>44 条 gamerule</h3><p>中文标签，按天气/生存/刷怪/掉落/命令/提示/性能分组，打开即批量拉取当前值，改动点「应用」即时生效。⚠️ MC 26.2 规则名<b>全 snake_case</b>：<code>keep_inventory</code> / <code>mob_griefing</code> / <code>random_tick_speed</code> / <code>advance_weather</code>。</p></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h3>为什么没有「任意命令输入框」</h3>
+        <p>面板挂了 <code>docker.sock</code>，不能被当成通用 shell。所有操作都走服务端白名单
+          <code>buildRconCommand()</code>（weather / time / timeFreeze / gamerule / gamemode /
+          defaultgamemode / difficulty / say / op / deop / pardon / kick / ban / whitelist /
+          whitelistToggle / banlist / query），参数逐项正则校验防注入。</p>
+      </div>
+    </div>
+
+    <div class="panel-view" id="v4">
+      <div class="grid g2">
+        <div class="card">
+          <h3>在线玩家</h3>
+          <p>实时列出<b>用户名 + UUID</b>（来自 <code>/list uuids</code>），并自动区分
+            <b>AI bot</b>（<code>MCAI</code>，UUID 与离线算法不符 = mod 自建无头玩家）与
+            <b>真人</b>（离线 UUID 算法匹配）。点击可复制 UUID；每行可切换模式 / 授予 OP / 踢出。</p>
+        </div>
+        <div class="card">
+          <h3>OP 列表</h3>
+          <p><code>op</code> / <code>deop</code>，即时生效，无需重启，并写入 <code>ops.json</code>。</p>
+        </div>
+        <div class="card">
+          <h3>白名单</h3>
+          <p>实时 <code>whitelist list</code>，可 add / remove / 一键开关（<code>white-list</code>）。开关会同时改写 <code>server.properties</code> 并热加载。</p>
+        </div>
+        <div class="card">
+          <h3>封禁</h3>
+          <p><code>ban</code>（带理由）/ <code>pardon</code>，可看当前封禁名单，写入 <code>banned-players.json</code>。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-view" id="v5">
+      <div class="grid g2">
+        <div class="card">
+          <h3>面板令牌</h3>
+          <p>改密 / <b>随机生成 48 位</b>。改动即时生效，并同步写 compose 的 <code>PANEL_TOKEN</code>。</p>
+        </div>
+        <div class="card">
+          <h3>RCON 密码</h3>
+          <p>改密 / <b>随机生成 24 位</b>。同步写 <code>server.properties</code> + compose 的
+            <code>mc-server.RCON_PASSWORD</code> 与 <code>mcai-panel.MC_RCON_PASSWORD</code> <b>三处</b>。</p>
+        </div>
+        <div class="card">
+          <h3>密钥一律不回显</h3>
+          <p>页面只显示 <code>••••••••</code> 与长度，前端 input 一律 <code>disabled</code>。</p>
+        </div>
+        <div class="card">
+          <h3>为什么改密要重启</h3>
+          <p>RCON 密码进了 compose 环境变量，改完需在宿主机执行
+            <code>docker compose up -d mc-server mcai-panel</code>。面板令牌立即生效。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-view" id="v6">
+      <div class="grid g2">
+        <div class="card">
+          <h3>容器日志尾部</h3>
+          <p>直连 Docker Engine API 的 <code>/containers/&lt;name&gt;/logs</code>，带 tty 的容器是裸文本、不带 tty 的是 8 字节帧头的流 —— <code>demuxLogs()</code> 两种都处理。</p>
+        </div>
+        <div class="card">
+          <h3>关键词过滤</h3>
+          <p>去 ANSI 颜色 / 进度覆盖残留，方便在「服务器启动崩溃循环」这类噪音里捞根因。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g3" style="margin-top:26px">
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg></div>
+        <h3>零依赖</h3>
+        <p>只用 <code>node:http/https/fs/path/net/crypto</code>，镜像直接复用 <code>node:22-alpine</code>，不需要 <code>npm install</code>，构建秒级。</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5"/></svg></div>
+        <h3>就地改写，保留注释</h3>
+        <p><code>setTomlValues()</code> / <code>setProps()</code> 只替换目标键那一行，<b>保留全部注释和排版</b>；缺键插到对应头之后。不引第三方库 → 不把用户的注释吃掉。</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4"/></svg></div>
+        <h3>RCON 自己实现</h3>
+        <p>不引库。认证要等到 <code>type=2</code>；响应 <b>150ms 静默</b>即认为结束（RCON 无结束标记）；<code>rconBulk</code> 单连接顺序跑 N 条命令，44 条 gamerule 约 6.7s。</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <h3>CRLF 解析陷阱</h3>
+        <p>JS 正则 <code>.</code> 不匹配 <code>\r</code>，<code>(.*)$</code> 在 CRLF 文件上整行失配且<b>静默返回 null</b>。所有文件切行都走 <code>splitLines()</code>，保证 NAS 上 CRLF 的 compose / properties / toml 都能正确解析。</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+        <h3>定长比较防侧信道</h3>
+        <p>鉴权用 <code>crypto.timingSafeEqual</code> 做定长比较，避免时序侧信道。</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <h3>181 项自测</h3>
+        <p><code>node mcai-panel/selftest.js</code>（需要 Node 22）。覆盖 TOML/properties 解析、注释保留、compose env 识别、离线 UUID 算法、命令白名单注入拒绝、<b>CRLF 回归</b>、掩码不泄露等。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SECURITY ================= -->
+<section id="security">
+  <div class="wrap">
+    <div class="eyebrow">Security</div>
+    <h2 class="h">安全边界：说清楚风险，才敢交出去</h2>
+    <p class="sub">
+      这个面板挂了 <code>docker.sock</code>，<b>等于给了宿主 Docker 控制权</b>。
+      所以它只在<b>内网</b>用，并且刻意不提供任意命令入口。
+    </p>
+
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead>
+          <tr><th>风险</th><th>说明</th><th>缓解</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>docker.sock</td>
+            <td>等于把宿主 Docker 控制权给了这个容器。面板被攻破 → 可控制宿主机上<b>所有</b>容器。</td>
+            <td>面板只在<b>内网</b>；令牌 48 字符随机；token 走 header，不进 URL 日志（除非用 <code>?token=</code> 分享）。</td>
+          </tr>
+          <tr>
+            <td>能 stop/start</td>
+            <td>这是刻意设计（配置要重启才生效），但也意味着误点会踢掉所有玩家。</td>
+            <td>长任务串行 + 进度可见；「停止」是独立按钮，不藏在保存里。</td>
+          </tr>
+          <tr>
+            <td>RCON 面板</td>
+            <td>若开放了任意命令 = 远程 Root。</td>
+            <td><b>没有任意命令入口</b>，只有白名单动作 + 参数正则校验。</td>
+          </tr>
+          <tr>
+            <td>HTTP 明文</td>
+            <td>内网明文传输，令牌在链路上可见。</td>
+            <td>若要出公网，必须套 Nginx/Caddy + TLS + 额外认证。<b>25800 不要直接暴露到公网。</b></td>
+          </tr>
+          <tr>
+            <td>写 api-key</td>
+            <td>API Key 落到宿主机文件。</td>
+            <td>权限强制 <code>0600</code>、属主 <code>1000:1000</code>；校验长度 ≥8、拒换行。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:22px;border-left:3px solid var(--ok)">
+      <h3>回滚方式</h3>
+      <p><code>docker compose rm -sf mcai-panel</code> 即可摘掉面板，<code>mc-server</code> 完全不受影响 —— 面板是旁路，不碰 MC 进程。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= QUICKSTART ================= -->
+<section id="start">
+  <div class="wrap">
+    <div class="eyebrow">Getting started</div>
+    <h2 class="h">把它跑起来</h2>
+    <p class="sub">克隆仓库，把 <code>mcai-panel</code> 代码放进你的 compose 目录，加一段服务块即可。</p>
+
+    <div class="qs">
+      <div class="bar"><i class="d"></i><i class="d"></i><i class="d"></i><span>bash — deploy</span></div>
+<pre><span class="c"># 1. 克隆（含面板代码 / 文档 / compose 示例 / 验证脚本）</span>
+git clone https://github.com/DC1024/minepilot-panel.git
+<span class="k">cd</span> minepilot-panel
+
+<span class="c"># 2. 生成一个面板令牌（48 位，别用示例值）</span>
+python gen_token.py            <span class="c"># 或 node -e "..."</span>
+
+<span class="c"># 3. 在 compose 项目目录里加入 mcai-panel 服务</span>
+<span class="c">#    参考 docker-compose.example.yml（凭据已脱敏）</span>
+<span class="k">cd</span> &lt;你的 compose 目录&gt;
+
+<span class="c"># 4. 首次起面板</span>
+docker compose up -d mcai-panel
+
+<span class="c"># 5. 打开 http://&lt;SERVER_IP&gt;:25800 ，粘入面板令牌</span>
+
+<span class="c"># 改了 server.js / index.html 之后：只读挂载，Node 不热重载，必须重启</span>
+docker restart mcai-panel
+
+<span class="c"># 自测（需要 Node 22）</span>
+node mcai-panel/selftest.js    <span class="c"># 181 项断言</span>
+</pre>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <b>面板是旁路，先跑通 MC 再装它</b>
+        <p>面板只读写 <code>server.properties</code> / <code>mcai-companion.toml</code> / <code>secrets/mcai-api-key</code>，并通过 RCON 和 docker.sock 操作容器。MC 本身跑不起来时，面板也帮不上忙。</p>
+      </div>
+      <div class="step">
+        <b>改 AI 配置走「保存并重启」</b>
+        <p>toml 是 ForgeConfigSpec，<b>启动只读一次</b>，不支持热改；而且 Forge 正常退出会把旧值刷回去，所以面板故意用「停止 → 写 → 启动」的顺序。</p>
+      </div>
+      <div class="step">
+        <b>接管键要勾「同步到 compose」</b>
+        <p>7 个键（<code>MODE</code> / <code>ONLINE_MODE</code> / <code>WHITELIST_PROP</code> / <code>DIFFICULTY</code> / <code>ENABLE_RCON</code> / <code>SIMULATION_DISTANCE</code> / <code>VIEW_DISTANCE</code> / <code>RCON_PASSWORD</code>）由 compose 环境变量接管，容器每次启动会覆盖 properties。只改 properties 会在下次启动被打回。</p>
+      </div>
+      <div class="step">
+        <b>想看 AI 的决策细节，开诊断开关</b>
+        <p><code>JVM_OPTS: "-Dmcai.liveModelTest=true"</code> 会打印 <code>Live-model decision rejected: kind=..., message=...</code> 与 <code>Live-model skill failed: skill=..., code=...</code> —— 这是<b>唯一</b>能看到 ModelFailure / SkillFailure 细节的途径。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SHOTS ================= -->
+<section id="shots">
+  <div class="wrap">
+    <div class="eyebrow">Screenshots</div>
+    <h2 class="h">无头浏览器验证过的真实界面</h2>
+    <p class="sub">
+      <code>check_panel.cjs</code>（playwright-core 起 Chromium）实跑面板，A~G 七段全 PASS、<code>ERRORS: none</code>。
+      下列截图已做脱敏处理（真实令牌与内网 IP 已遮盖）；<b>点图看完整长图</b>。
+    </p>
+
+    <div class="gal">
+      <a class="shot" href="assets/panel-server.png" target="_blank" rel="noopener">
+        <div class="thumb"><img src="assets/panel-server.webp" alt="服务器设置页：66 个属性、5 分组、7 个 compose 接管徽标" loading="lazy"></div>
+        <div class="cap"><b>② 服务器设置</b><small>66 属性 · 5 分组 · 7 个接管徽标 · 密钥掩码禁用</small></div>
+      </a>
+      <a class="shot" href="assets/panel-runtime.png" target="_blank" rel="noopener">
+        <div class="thumb"><img src="assets/panel-runtime.webp" alt="运行时控制页：天气、时间、游戏模式、44 条 gamerule" loading="lazy"></div>
+        <div class="cap"><b>③ 运行时控制</b><small>44 条 gamerule 读取 6.7s · 即时应用</small></div>
+      </a>
+      <a class="shot" href="assets/panel-players.png" target="_blank" rel="noopener">
+        <div class="thumb"><img src="assets/panel-players.webp" alt="玩家管理页：在线玩家、OP、白名单、封禁" loading="lazy"></div>
+        <div class="cap"><b>④ 玩家管理</b><small>UUID 可复制 · AI/真人自动区分 · OP 徽标</small></div>
+      </a>
+      <a class="shot" href="assets/panel-security.png" target="_blank" rel="noopener">
+        <div class="thumb"><img src="assets/panel-security.webp" alt="密码与令牌页：面板令牌与 RCON 密码" loading="lazy"></div>
+        <div class="cap"><b>⑤ 密码与令牌</b><small>随机生成 · 三处同步 · 一律不回显</small></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FILES ================= -->
+<section id="files">
+  <div class="wrap">
+    <div class="eyebrow">Repository</div>
+    <h2 class="h">仓库里有什么</h2>
+    <p class="sub">所有真实凭据（NAS 密码 / RCON 密码 / MCP Token / 面板 Token / API Key）已统一脱敏为 <code>&lt;占位符&gt;</code>；内网 IP 泛化为 <code>&lt;SERVER_IP&gt;</code>。</p>
+
+    <div class="tree">
+<span class="dir">minepilot-panel/</span>
+├── <span class="f">OUR-IMPROVEMENTS.md</span>            <span class="cm">← 先看这份：8 个补丁改进汇总</span>
+├── <span class="f">README.md</span>                       <span class="cm">交付物总览</span>
+├── <span class="dir">mcai-panel/</span>                     <span class="cm">自研 Web 面板（零依赖）</span>
+│   ├── <span class="f">server.js</span>                   <span class="cm">后端 64.7 KB，只用 node 内置模块</span>
+│   ├── <span class="f">index.html</span>                  <span class="cm">单页前端 66.1 KB，内联 CSS/JS，无外部资源</span>
+│   └── <span class="f">selftest.js</span>                 <span class="cm">181 项自测</span>
+├── <span class="f">docker-compose.example.yml</span>      <span class="cm">部署示例（含 mcai-panel + mc-server）</span>
+├── <span class="f">check_panel.cjs</span>                 <span class="cm">无头浏览器验证脚本（playwright-core）</span>
+├── <span class="f">gen_token.py</span> / <span class="f">dump_server_cfg.py</span>  <span class="cm">部署辅助脚本</span>
+├── <span class="dir">shots/</span>                          <span class="cm">面板 6 页签验证截图</span>
+├── <span class="dir">site/</span>                           <span class="cm">本宣传页（GitHub Pages）</span>
+├── <span class="f">MinePilot-配置面板-使用说明.md</span>      <span class="cm">访问方式 · 6 页签 · 后端接口 · 安全</span>
+├── <span class="f">配置修改与权限说明.md</span>              <span class="cm">配置文件速查 + 权限模型</span>
+├── <span class="f">加入服务器指南.md</span>                  <span class="cm">真人客户端进服参数与排查</span>
+├── <span class="f">MinePilot-MCP修复与决策链路诊断报告.md</span>  <span class="cm">MCP 修复 + 决策链路根因（A/B/C 组）</span>
+└── <span class="f">进服失败-无效玩家数据-根因与修复.md</span>  <span class="cm">玩家名过短导致踢人的根因与补丁（D 组）</span>
+    </div>
+
+    <div class="grid g3" style="margin-top:24px">
+      <div class="card">
+        <h3>上游项目</h3>
+        <p>MinePilot（<code>weidakuang/MinePilot</code>，mod id <code>mcai_companion</code>，LGPL-3.0）。本仓库的改动基于它，构建 workflow 在 <code>DC1024/minepilot-build</code>。</p>
+      </div>
+      <div class="card">
+        <h3>客户端的坑</h3>
+        <p>服务端是 Forge，不是原版。客户端必须装<b>同名同版本</b>的 jar（<code>MATCH_VERSION</code> 精确匹配），并且 Java 要 25、MC 要 26.2、Forge 要 65.0.0。</p>
+      </div>
+      <div class="card">
+        <h3>离线服的限制</h3>
+        <p><code>online-mode=false</code> 时游戏内「设置 AI」界面<b>永久不可用</b>（<code>hasSecureTransport</code> 要求 pipeline 有 <code>decrypt</code>+<code>encrypt</code>）→ 改模型走 toml。想让别人在聊天里指挥 AI，给 OP 或把 UUID 加进 <code>[chat] allowedSenders</code>。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap in">
+    <div>
+      <div style="color:var(--txt);font-weight:650;margin-bottom:4px">MinePilot Panel</div>
+      自研 Web 配置面板 + 上游补丁改进汇总 · 基于线上验证与 git 提交历史整理
+    </div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap">
+      <a href="https://github.com/DC1024/minepilot-panel" target="_blank" rel="noopener">仓库</a>
+      <a href="https://github.com/DC1024/minepilot-panel/blob/main/OUR-IMPROVEMENTS.md" target="_blank" rel="noopener">8 个补丁改进</a>
+      <a href="https://github.com/DC1024/minepilot-panel/blob/main/MinePilot-%E9%85%8D%E7%BD%AE%E9%9D%A2%E6%9D%BF-%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E.md" target="_blank" rel="noopener">面板使用说明</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+// 面板页签切换
+document.querySelectorAll('.tabbar button').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.tabbar button').forEach(function (b) {
+      b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+    });
+    document.querySelectorAll('.panel-view').forEach(function (v) {
+      v.classList.toggle('on', v.id === btn.dataset.view);
+    });
+  });
+});
+
+// 滚动进入时轻微浮入。
+// 页面上任何内容都不依赖 JS 才能看到：.reveal 只在这里加，并且 1.5s 后无条件兜底显示。
+(function () {
+  var els = document.querySelectorAll('.card, .imp, .step, .shot, .flow, .tbl');
+  function showAll() {
+    els.forEach(function (el) { el.classList.add('in'); });
+  }
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+    showAll();
+    return;
+  }
+  els.forEach(function (el) { el.classList.add('reveal'); });
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    });
+  }, { rootMargin: '-40px 0px -8% 0px', threshold: 0.04 });
+  els.forEach(function (el) { io.observe(el); });
+  setTimeout(showAll, 1500);   // 兜底：观察器没触发也一定可见
+})();
+</script>
+</body>
+</html>
