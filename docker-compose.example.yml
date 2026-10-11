@@ -1,0 +1,110 @@
+services:
+  # ====================================================================
+  # MC 服务端：Forge 26.2 + MinePilot(mcai_companion) 无头常驻自主 bot
+  #   - MinePilot 在服务端创建无账户 ServerPlayer，无需图形客户端/真人在线
+  #   - 走服务端原生玩家路径，规避 mineflayer 的 PartialReadError / Illegal Move
+  #   - Forge 必须锁 65.x：MinePilot 0.1.16 仅兼容 Forge 65.0.0 ~ 66.0.0(不含)
+  # ====================================================================
+  mc-server:
+    image: itzg/minecraft-server:java25
+    container_name: mc-server
+    restart: unless-stopped
+    environment:
+      EULA: "TRUE"
+      TYPE: "FORGE"
+      VERSION: "26.2"
+      FORGE_VERSION: "65.0.0"
+      MEMORY: "3G"
+      # 打开 MinePilot 的诊断日志：-Dmcai.liveModelTest=true 会打印
+      #   "Live-model decision rejected: kind=..., message=..."
+      # 这是定位决策请求失败原因的唯一途径（ModelFailure 默认不落原始报文）。
+      JVM_OPTS: "-Dmcai.liveModelTest=true"
+      VIEW_DISTANCE: "8"
+      SIMULATION_DISTANCE: "6"
+      ONLINE_MODE: "FALSE"
+      ENABLE_RCON: "true"
+      RCON_PASSWORD: "<RCON_PASSWORD>"
+      MOTD: "Zspace AI Minecraft Server"
+      DIFFICULTY: "normal"
+      TZ: "Asia/Shanghai"
+      UID: "1000"
+      GID: "1000"
+
+      # ---- MinePilot：无头常驻配置 ----
+      # 指向挂载的只读密钥文件（容器首选），避免密钥写进 toml/存档/日志
+      MCAI_API_KEY_FILE: "/data/secrets/mcai-api-key"
+      MCAI_MCP_TOKEN: "<MCP_TOKEN>"
+
+    ports:
+      - "25565:25565"
+      - "25575:25575"
+    volumes:
+      - ./minecraft-data:/data
+    tty: true
+    stdin_open: true
+    healthcheck:
+      test: ["CMD", "mc-health"]
+      interval: 30s
+      start_period: 420s
+      retries: 10
+
+  # ====================================================================
+  # 旧 P3 路线A（Mindcraft + mineflayer）：已退役
+  #   - mineflayer/minecraft-data 不支持 MC 26.x，且存在未修的协议解析缺陷
+  #   - 保留定义以便回退，加 profile 后默认不随 up 启动
+  #   - 需要时：docker compose --profile legacy-mindcraft up -d ai-agent
+  # ====================================================================
+  ai-agent:
+    profiles: ["legacy-mindcraft"]
+    build: ./ai-agent
+    container_name: ai-agent
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./ai-agent-data:/data
+    environment:
+      MC_HOST: "mc-server"
+      MC_PORT: "25565"
+      MC_USERNAME: "AIBot"
+      MC_VERSION: "1.21.1"
+      MC_AUTH: "offline"
+      WEB_PORT: "3002"
+      MINDSERVER_URL: "http://127.0.0.1:8080"
+      ALLOW_ACTIONS: "false"
+      TZ: "Asia/Shanghai"
+      LOG_LEVEL: "info"
+
+  # ====================================================================
+  # MinePilot 配置面板（网页版）
+  #   - 改 config/mcai-companion.toml（模型/MCP/白名单/皮肤）+ API Key
+  #   - 看状态/在线玩家/日志，一键「停止 → 写盘 → 启动」
+  #   - 复用本地已有的 node:22-alpine 镜像，零依赖、无需构建
+  #   - 挂 docker.sock 仅用于 stop/start/inspect/logs（代码里只对 mc-server 操作）
+  # ====================================================================
+  mcai-panel:
+    image: node:22-alpine
+    container_name: mcai-panel
+    restart: unless-stopped
+    ports:
+      - "25800:25800"
+    volumes:
+      - ./minecraft-data:/data
+      - ./mcai-panel:/app:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      PANEL_PORT: "25800"
+      PANEL_TOKEN: "<PANEL_TOKEN>"
+      MC_CONTAINER: "mc-server"
+      MC_DATA_DIR: "/data"
+      MC_RCON_HOST: "mc-server"
+      MC_RCON_PORT: "25575"
+      MC_RCON_PASSWORD: "<RCON_PASSWORD>"
+      MC_UID: "1000"
+      MC_GID: "1000"
+      TZ: "Asia/Shanghai"
+    command: ["node", "/app/server.js"]
+
+networks:
+  default:
+    name: minecraft_default

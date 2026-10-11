@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MinePilot 配置面板</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#121b2e; --panel2:#0e1728; --line:#22304a;
+    --txt:#e6edf7; --dim:#8fa3c0; --accent:#4ea1ff; --accent2:#22d3ee;
+    --ok:#34d399; --warn:#fbbf24; --err:#f87171; --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:
+      radial-gradient(1200px 600px at 10% -10%, #16233c 0%, transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, #0f2b3a 0%, transparent 55%),
+      var(--bg);
+    color:var(--txt);font:14px/1.55 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    min-height:100vh;padding:22px}
+  .wrap{max-width:1160px;margin:0 auto}
+  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  h1{font-size:19px;margin:0;letter-spacing:.4px;font-weight:650}
+  h1 span{color:var(--accent2)}
+  .sub{color:var(--dim);font-size:12.5px}
+  .spacer{flex:1}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:#475569;box-shadow:0 0 0 3px rgba(255,255,255,.04)}
+  .dot.on{background:var(--ok);box-shadow:0 0 10px rgba(52,211,153,.7)}
+  .dot.off{background:var(--err);box-shadow:0 0 10px rgba(248,113,113,.6)}
+  .dot.warn{background:var(--warn);box-shadow:0 0 10px rgba(251,191,36,.6)}
+  .chip{display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);
+        border-radius:999px;padding:5px 12px;font-size:12.5px;color:var(--dim)}
+  .chip b{color:var(--txt);font-weight:600}
+
+  nav.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;border-bottom:1px solid var(--line);padding-bottom:10px}
+  nav.tabs button{background:transparent;border:1px solid transparent;color:var(--dim);padding:7px 14px;
+        border-radius:9px;font-size:13.5px;cursor:pointer}
+  nav.tabs button:hover{color:var(--txt);background:#16223a}
+  nav.tabs button.active{background:linear-gradient(135deg,#1e3a6b,#0d3f52);color:#fff;
+        border-color:#2b4f7d;font-weight:600}
+  nav.tabs .cnt{font-size:11px;color:var(--dim);margin-left:5px}
+
+  .pane{display:none}
+  .pane.active{display:block}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+  .full{grid-column:1/-1}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+        border-radius:var(--radius);padding:16px 16px 14px}
+  .card h2{font-size:13.5px;margin:0 0 12px;letter-spacing:.5px;color:var(--dim);
+           display:flex;align-items:center;gap:8px;font-weight:600}
+  .card h2::before{content:"";width:3px;height:14px;border-radius:2px;background:linear-gradient(180deg,var(--accent),var(--accent2))}
+  .card h2 .spacer{flex:1}
+  label{display:block;font-size:12.5px;color:var(--dim);margin:10px 0 4px}
+  input,select,textarea{width:100%;background:#0a1120;border:1px solid var(--line);color:var(--txt);
+        border-radius:9px;padding:9px 11px;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+  input.bad{border-color:var(--err);box-shadow:0 0 0 3px rgba(248,113,113,.12)}
+  input:disabled,select:disabled{opacity:.55;cursor:not-allowed}
+  input[type=checkbox]{width:auto}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .hint{color:var(--dim);font-size:11.5px;margin-top:5px;line-height:1.55}
+  .err{color:var(--err);font-size:11.5px;margin-top:4px;min-height:0}
+  button{background:#1b2a44;color:var(--txt);border:1px solid var(--line);border-radius:9px;
+         padding:9px 14px;font-size:13px;cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--accent);background:#203254}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:linear-gradient(135deg,#2563eb,#0891b2);border:none;font-weight:600}
+  button.primary:hover{filter:brightness(1.12)}
+  button.danger{background:#3b1d22;border-color:#5b2a33;color:#fda4af}
+  button.danger:hover{border-color:var(--err)}
+  button.ghost{background:transparent}
+  button.tiny{padding:5px 10px;font-size:12px;border-radius:7px}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px;
+       background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+  .actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+  .logs{background:#060c17;border:1px solid var(--line);border-radius:10px;padding:11px;
+        height:290px;overflow:auto;font:11.5px/1.6 ui-monospace,Menlo,Consolas,monospace;
+        color:#9fb3d1;white-space:pre-wrap;word-break:break-all}
+  .logs .k{color:var(--accent2)}
+  .logs .e{color:#fca5a5}
+  .tasklist{font:11.5px/1.7 ui-monospace,Menlo,Consolas,monospace;color:var(--dim)}
+  .tasklist div:last-child{color:var(--txt)}
+  .toast{position:fixed;right:20px;bottom:20px;max-width:460px;background:var(--panel);
+         border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;
+         padding:12px 14px;font-size:13px;box-shadow:0 12px 40px rgba(0,0,0,.5);display:none;z-index:50;
+         white-space:pre-wrap}
+  .toast.show{display:block}
+  .toast.err{border-left-color:var(--err)}
+  .toast.ok{border-left-color:var(--ok)}
+  .badge{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--dim)}
+  .badge.ok{color:var(--ok);border-color:#1d4f3c}
+  .badge.no{color:var(--err);border-color:#5b2a33}
+  .badge.warn{color:var(--warn);border-color:#5b4a1a}
+  .badge.bot{color:var(--accent2);border-color:#17505c}
+  .kpi{display:flex;gap:18px;flex-wrap:wrap;margin-top:2px}
+  .kpi div{font-size:12.5px;color:var(--dim)}
+  .kpi b{display:block;font-size:17px;color:var(--txt);font-weight:650;letter-spacing:.3px}
+  #gate{position:fixed;inset:0;background:rgba(6,11,20,.96);display:flex;align-items:center;
+        justify-content:center;z-index:100}
+  #gate .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px;width:min(92vw,420px)}
+  .muted{color:var(--dim)}
+  code{background:#0a1120;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:11.5px}
+
+  /* 属性行 */
+  .prop{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px dashed #1b2740}
+  .prop:last-child{border-bottom:none}
+  .prop .meta{flex:1;min-width:0}
+  .prop .k{font-size:13px;color:var(--txt)}
+  .prop .kk{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:#6f86a8}
+  .prop .ctl{width:200px;flex:0 0 200px}
+  .prop .ctl input,.prop .ctl select{padding:6px 9px;font-size:12.5px}
+  .prop.changed .k::after{content:"已改";font-size:10px;color:var(--warn);border:1px solid #5b4a1a;
+        border-radius:999px;padding:0 6px;margin-left:7px}
+  .lock{font-size:10.5px;color:var(--warn);border:1px solid #5b4a1a;border-radius:999px;padding:0 7px;margin-left:7px}
+
+  /* 玩家行 */
+  .prow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed #1b2740;flex-wrap:wrap}
+  .prow:last-child{border-bottom:none}
+  .prow .nm{font-weight:600;min-width:96px}
+  .prow .uu{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:#6f86a8;
+        cursor:pointer;flex:1;min-width:220px;word-break:break-all}
+  .prow .uu:hover{color:var(--accent2)}
+  .prow .ops{display:flex;gap:6px;flex-wrap:wrap}
+  .empty{color:var(--dim);font-size:12.5px;padding:8px 0}
+
+  /* 运行时控制 */
+  .rt{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .rule{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px dashed #1b2740}
+  .rule:last-child{border-bottom:none}
+  .rule .rmeta{flex:1;min-width:0}
+  .rule .rname{font-size:12.5px}
+  .rule .rid{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;color:#6f86a8;display:block}
+  .rule .rctl{width:170px;flex:0 0 170px}
+  .rule .rctl input,.rule .rctl select{padding:5px 8px;font-size:12.5px}
+  .btns{display:flex;gap:7px;flex-wrap:wrap;margin-top:4px}
+  .out{background:#060c17;border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-top:9px;
+       font:11.5px/1.6 ui-monospace,Menlo,Consolas,monospace;color:#9fb3d1;white-space:pre-wrap;
+       max-height:180px;overflow:auto;word-break:break-all}
+  details.adv{margin-top:10px}
+  details.adv summary{cursor:pointer;color:var(--dim);font-size:12.5px;user-select:none}
+  details.adv summary:hover{color:var(--accent2)}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="box">
+    <h1 style="margin-bottom:14px">MinePilot <span>配置面板</span></h1>
+    <p class="hint" style="margin:0 0 6px">请输入面板访问令牌（部署时设置的 <code>PANEL_TOKEN</code>）</p>
+    <input id="gateInput" type="password" placeholder="面板令牌" autocomplete="off">
+    <div class="err" id="gateErr"></div>
+    <div style="margin-top:14px"><button class="primary" style="width:100%" id="gateBtn">进入</button></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>MinePilot <span>配置面板</span></h1>
+      <div class="sub" id="subline">正在加载…</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="chip"><span class="dot" id="dotMc"></span>mc-server <b id="mcState">—</b></div>
+    <div class="chip"><span class="dot" id="dotAi"></span>在线 <b id="players">—</b></div>
+    <button class="ghost" id="logout">退出</button>
+  </header>
+
+  <div class="bar" id="jobbar" style="display:none">
+    <div style="min-width:280px">
+      <div style="font-size:12.5px;color:var(--dim)">任务</div>
+      <div class="kpi"><div><b id="jobStep">—</b></div></div>
+      <div class="tasklist" id="jobLog"></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="badge" id="jobBadge">进行中</div>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="ai" class="active">AI 配置</button>
+    <button data-tab="server">服务器设置<span class="cnt" id="cntServer"></span></button>
+    <button data-tab="runtime">运行时控制</button>
+    <button data-tab="players">玩家管理<span class="cnt" id="cntPlayers"></span></button>
+    <button data-tab="security">密码与令牌</button>
+    <button data-tab="logs">日志</button>
+  </nav>
+
+  <!-- ============ AI 配置 ============ -->
+  <section class="pane active" id="pane-ai">
+    <div class="grid">
+      <div class="card">
+        <h2>模型连接</h2>
+        <label>Base URL（远程必须 https）</label>
+        <input id="baseUrl" placeholder="https://.../v1">
+        <div class="err" id="e_baseUrl"></div>
+        <label>模型名称</label>
+        <input id="name" placeholder="例如 Qwen3.8-27B">
+        <div class="err" id="e_name"></div>
+        <div class="row">
+          <div>
+            <label>软超时（秒，1–89）</label>
+            <input id="soft" type="number" min="1" max="89">
+            <div class="err" id="e_soft"></div>
+          </div>
+          <div>
+            <label>硬超时（秒，2–300）</label>
+            <input id="hard" type="number" min="2" max="300">
+            <div class="err" id="e_hard"></div>
+          </div>
+        </div>
+        <div class="hint">实际软超时 = min(软超时, 硬超时 − 1)。改完必须重启 mc-server 才生效。</div>
+        <div style="margin-top:12px"><button id="testBtn">测试模型连通</button></div>
+        <div class="out" id="testOut" style="display:none"></div>
+      </div>
+
+      <div class="card">
+        <h2>API Key</h2>
+        <div class="kpi">
+          <div><b id="keyState">—</b><span>状态</span></div>
+          <div><b id="keyBytes">—</b><span>字节</span></div>
+          <div><b id="keyMode">—</b><span>权限位</span></div>
+        </div>
+        <div class="hint">密钥只以文件形式存放于 <code>secrets/mcai-api-key</code>（权限 600），面板不回显明文。</div>
+        <label>覆盖为新的 Key（留空则不改）</label>
+        <input id="apiKey" type="password" placeholder="sk-..." autocomplete="new-password">
+        <div style="margin-top:12px"><button id="keyBtn">仅保存 Key</button></div>
+        <div class="hint">不建议把密钥写进 toml，模组源码明确禁止。</div>
+      </div>
+
+      <div class="card">
+        <h2>MCP 控制口</h2>
+        <label>启用</label>
+        <select id="mcpEnabled"><option value="true">true（开启）</option><option value="false">false（关闭）</option></select>
+        <label>端口（1024–65535）</label>
+        <input id="mcpPort" type="number" min="1024" max="65535">
+        <div class="err" id="e_mcpPort"></div>
+        <div class="hint">
+          地址是 <code>http://[::1]:25766/mcp</code>，只绑容器内 IPv6 loopback，容器外连不上。<br>
+          <b>Token 不在 toml 里</b>，它是 compose 的 <code>MCAI_MCP_TOKEN</code> 环境变量 ——
+          改它需要改 compose 后在宿主机执行 <code>docker compose up -d mc-server</code>。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>权限白名单</h2>
+        <label>chat.allowedSenders —— 允许在聊天里指挥 AI 的玩家 UUID</label>
+        <textarea id="chatAllowed" rows="3" placeholder="每行一个 UUID，或用逗号分隔"></textarea>
+        <div class="err" id="e_chat"></div>
+        <label>waypoints.allowedSenders —— 允许给 AI 发路点的玩家 UUID</label>
+        <textarea id="waypointAllowed" rows="2" placeholder="每行一个 UUID，或用逗号分隔"></textarea>
+        <div class="err" id="e_wp"></div>
+        <div class="hint">
+          留空 = 只有 OP / 存档所有者可以。这条<b>只管聊天派任务</b>，设置界面与管理命令仍要求 OP。<br>
+          在线玩家的 UUID 见「玩家管理」页，点一下即可复制。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>皮肤</h2>
+        <label>自动导入固定文件 <code>config/mcai-companion/skin.png</code></label>
+        <select id="skinAuto"><option value="true">true</option><option value="false">false</option></select>
+        <label>手臂模型</label>
+        <select id="skinArm"><option value="CLASSIC">CLASSIC（经典）</option><option value="SLIM">SLIM（纤细）</option></select>
+        <div class="hint">导入只认固定路径，不接受 URL 或任意路径。把 64×64 PNG 放到 <code>minecraft-data/config/mcai-companion/skin.png</code> 即可。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 服务器设置 ============ -->
+  <section class="pane" id="pane-server">
+    <div class="card full" style="margin-bottom:14px" id="composeNotice" hidden>
+      <h2>⚠️ 部分设置由 compose 环境变量接管</h2>
+      <div class="hint" id="composeNoticeBody"></div>
+    </div>
+    <div class="grid" id="propsHost"></div>
+    <div class="bar">
+      <div class="actions">
+        <button class="primary" id="savePropsRestart">保存属性并重启</button>
+        <button id="savePropsOnly">仅保存属性</button>
+      </div>
+      <div class="spacer"></div>
+      <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:12.5px">
+        <input type="checkbox" id="syncCompose" checked> 同步到 compose
+      </label>
+    </div>
+    <div class="hint">
+      Forge / MC 启动时读一次 server.properties，<b>不支持热改</b>，所以改完必须重启。
+      勾选「同步到 compose」后，被环境变量接管的键会一并改写 compose；
+      因为环境变量变更需要重建容器，届时请在宿主机执行 <code>docker compose up -d mc-server</code>。
+    </div>
+  </section>
+
+  <!-- ============ 运行时控制 ============ -->
+  <section class="pane" id="pane-runtime">
+    <div class="rt">
+      <div class="card">
+        <h2>天气</h2>
+        <div class="hint">只影响主世界，且会被「天气循环」规则覆盖。</div>
+        <div class="btns" style="margin-top:10px">
+          <button data-rcon="weather" data-kind="clear">☀️ 晴天</button>
+          <button data-rcon="weather" data-kind="rain">🌧️ 下雨</button>
+          <button data-rcon="weather" data-kind="thunder">⛈️ 雷暴</button>
+        </div>
+        <label>持续时间（秒，留空 = 默认）</label>
+        <input id="weatherSecs" type="number" min="1" placeholder="例如 600">
+      </div>
+
+      <div class="card">
+        <h2>时间</h2>
+        <div class="hint">MC 26.2 已把时间命令重做：<code>time set &lt;timemarker&gt;</code> / <code>time set &lt;tick&gt;</code>。</div>
+        <div class="btns" style="margin-top:10px">
+          <button data-rcon="time" data-marker="day">🌅 白天</button>
+          <button data-rcon="time" data-marker="noon">🌞 正午</button>
+          <button data-rcon="time" data-marker="night">🌙 夜晚</button>
+          <button data-rcon="time" data-marker="midnight">🌌 午夜</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div>
+            <label>或指定 tick（0–24000）</label>
+            <input id="timeTicks" type="number" min="0" max="24000" placeholder="例如 12000">
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <button id="setTimeTicks" style="width:100%">设置</button>
+          </div>
+        </div>
+        <div class="btns" style="margin-top:8px">
+          <button data-rcon="timeFreeze" data-state="pause">⏸ 冻结昼夜</button>
+          <button data-rcon="timeFreeze" data-state="resume">▶️ 恢复昼夜</button>
+          <button class="ghost tiny" data-rcon="query" data-cmd="time query gametime">查询游戏时间</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>游戏模式 / 难度</h2>
+        <label>对在线玩家切换游戏模式</label>
+        <div class="row">
+          <select id="gmPlayer"><option value="">（载入中…）</option></select>
+          <select id="gmMode">
+            <option value="survival">生存</option><option value="creative">创造</option>
+            <option value="adventure">冒险</option><option value="spectator">旁观</option>
+          </select>
+        </div>
+        <div style="margin-top:8px"><button id="applyGm" style="width:100%">应用</button></div>
+        <label>难度（即时生效）</label>
+        <div class="btns">
+          <button data-rcon="difficulty" data-level="peaceful">和平</button>
+          <button data-rcon="difficulty" data-level="easy">简单</button>
+          <button data-rcon="difficulty" data-level="normal">普通</button>
+          <button data-rcon="difficulty" data-level="hard">困难</button>
+          <button class="ghost tiny" data-rcon="query" data-cmd="difficulty">查询</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>广播</h2>
+        <label>全服公告</label>
+        <input id="sayText" placeholder="要广播的内容">
+        <div style="margin-top:8px;display:flex;gap:7px">
+          <button id="sendSay" class="primary" style="flex:1">发送</button>
+        </div>
+        <div class="hint">走 MC 原生 <code>/say</code>，会出现在所有玩家聊天栏。</div>
+      </div>
+
+      <div class="card full">
+        <h2>
+          游戏规则（gamerule）
+          <span class="spacer"></span>
+          <span class="muted" id="rulesStatus" style="font-size:11.5px"></span>
+          <button class="ghost tiny" id="reloadRules">重新读取</button>
+        </h2>
+        <div class="hint">
+          ⚠️ MC 26.2 把规则名全部改成 <b>snake_case</b>：<code>keepInventory</code>→<code>keep_inventory</code>、
+          <code>mobGriefing</code>→<code>mob_griefing</code>、<code>randomTickSpeed</code>→<code>random_tick_speed</code>、<code>doWeatherCycle</code>→<code>advance_weather</code>。
+          改完即时生效，无需重启。
+        </div>
+        <div id="rulesHost" style="margin-top:10px" class="empty">点「重新读取」加载当前值…</div>
+        <details class="adv">
+          <summary>自定义规则（改上面没列到的）</summary>
+          <div class="row" style="margin-top:9px">
+            <div>
+              <label>规则名（小写 + 下划线）</label>
+              <input id="customRule" placeholder="例如 spawn_phantoms">
+            </div>
+            <div>
+              <label>值（true / false / 整数；留空 = 仅查询）</label>
+              <input id="customRuleVal" placeholder="false">
+            </div>
+            <div style="display:flex;align-items:flex-end">
+              <button id="applyCustomRule" style="width:100%">执行</button>
+            </div>
+          </div>
+          <div class="hint">用 <code>/help gamerule</code> 可列出该版本全部合法规则名。</div>
+        </details>
+        <div class="out" id="rtOut" style="display:none"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 玩家管理 ============ -->
+  <section class="pane" id="pane-players">
+    <div class="grid">
+      <div class="card full">
+        <h2>在线玩家<span class="spacer"></span><span class="badge" id="pcount">—</span></h2>
+        <div class="hint">名字与 UUID 来自 <code>/list uuids</code>；点 UUID 可复制。「AI」徽标 = UUID 不符合离线算法，即模组自建的无头玩家。</div>
+        <div id="onlineHost" style="margin-top:8px"><div class="empty">加载中…</div></div>
+      </div>
+
+      <div class="card">
+        <h2>OP（管理员）</h2>
+        <div class="hint">通过 <code>/op</code> <code>/deop</code> 即时生效，并写入 <code>ops.json</code>。</div>
+        <div id="opsHost" style="margin-top:8px"><div class="empty">加载中…</div></div>
+        <label>用户名（须在线或在服务器登录过）</label>
+        <div class="row">
+          <input id="opName" placeholder="例如 DC">
+          <button id="doOp" style="flex:0 0 auto">设为 OP</button>
+        </div>
+        <div class="hint">OP 等级由 server.properties 的 <code>op-permission-level</code> 决定（当前见「服务器设置」）。</div>
+      </div>
+
+      <div class="card">
+        <h2>白名单</h2>
+        <div class="hint">
+          <code>/whitelist on|off</code> 会同时改写 server.properties 并热加载。<br>
+          当前开关状态见「服务器设置 → 启用白名单」。
+        </div>
+        <div class="btns" style="margin-top:10px">
+          <button data-rcon="whitelistToggle" data-state="on">开启白名单</button>
+          <button data-rcon="whitelistToggle" data-state="off">关闭白名单</button>
+          <button class="ghost tiny" data-rcon="query" data-cmd="whitelist list">刷新名单</button>
+        </div>
+        <div id="wlHost" style="margin-top:10px"><div class="empty">加载中…</div></div>
+        <div class="row" style="margin-top:8px">
+          <input id="wlName" placeholder="例如 DC">
+          <button id="wlAdd" style="flex:0 0 auto">加入</button>
+          <button id="wlRemove" class="danger" style="flex:0 0 auto">移除</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>封禁</h2>
+        <div class="hint">封禁会写入 <code>banned-players.json</code>，重启后仍然有效。</div>
+        <div id="banHost" style="margin-top:8px"><div class="empty">加载中…</div></div>
+        <label>用户名</label>
+        <input id="banName" placeholder="例如 Griefer">
+        <label>理由（可留空）</label>
+        <input id="banReason" placeholder="例如 破坏建筑">
+        <div class="btns" style="margin-top:8px">
+          <button id="doBan" class="danger">封禁</button>
+          <button id="doPardon">解除封禁</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 密码与令牌 ============ -->
+  <section class="pane" id="pane-security">
+    <div class="card full" style="margin-bottom:14px">
+      <h2>改动会发生什么</h2>
+      <div class="hint">
+        · <b>面板令牌</b>：立即生效（当前浏览器需要用新令牌重新登录），同时写入 compose。<br>
+        · <b>RCON 密码</b>：写入 server.properties + compose 的 <code>mc-server.RCON_PASSWORD</code> 与
+        <code>mcai-panel.MC_RCON_PASSWORD</code>。因为环境变量变更必须重建容器，
+        之后请在宿主机执行 <code>docker compose up -d mc-server mcai-panel</code>。
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h2>面板访问令牌</h2>
+        <div class="kpi">
+          <div><b id="tokState">—</b><span>状态</span></div>
+          <div><b id="tokLen">—</b><span>长度</span></div>
+        </div>
+        <label>新令牌（16–128 位，只能用字母、数字、<code>_ - .</code>）</label>
+        <input id="newToken" type="text" placeholder="建议用随机串" autocomplete="off">
+        <div class="btns" style="margin-top:9px">
+          <button class="primary" id="genToken">随机生成</button>
+          <button id="saveToken">修改令牌</button>
+        </div>
+        <div class="hint">⚠️ 改完当前页面会认证失败，请用新令牌重新进入。</div>
+      </div>
+
+      <div class="card">
+        <h2>RCON 密码</h2>
+        <div class="kpi">
+          <div><b id="rconHost">—</b><span>RCON 地址</span></div>
+          <div><b id="rconLen">—</b><span>密码长度</span></div>
+        </div>
+        <div class="hint">密码本身不回显。端口 <code>rcon.port</code> 在「服务器设置 → 网络与性能」里改。</div>
+        <label>新密码（8–64 位，不能含空格、<code>=</code>、<code>#</code>）</label>
+        <input id="newRconPw" type="password" placeholder="建议用随机串" autocomplete="new-password">
+        <div class="btns" style="margin-top:9px">
+          <button class="primary" id="genRconPw">随机生成</button>
+          <button id="saveRconPw">修改密码</button>
+        </div>
+        <div class="hint">⚠️ 重建容器前，面板仍用旧密码连 RCON（查询正常）；服务器重启后即一致。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 日志 ============ -->
+  <section class="pane" id="pane-logs">
+    <div class="card">
+      <h2>服务端日志（最近 200 行）</h2>
+      <input id="logFilter" placeholder="过滤关键词（留空显示全部；AI 刷屏时很有用）" style="margin-bottom:9px">
+      <div class="logs" id="logs">…</div>
+      <div class="actions" style="margin-top:10px">
+        <button id="refreshBtn">刷新</button>
+        <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:12.5px">
+          <input type="checkbox" id="autoRefresh" checked style="width:auto"> 自动刷新（5s）
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <!-- 全局操作条 -->
+  <div class="bar">
+    <div class="actions">
+      <button class="primary" id="saveRestart">保存全部并重启（推荐）</button>
+      <button id="saveOnly">仅保存（不重启）</button>
+      <button id="restartOnly">仅重启</button>
+      <button id="stopOnly" class="danger">停止</button>
+      <button id="startOnly">启动</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="hint" style="margin:0">「保存全部并重启」= AI 配置 + 服务器属性，先停容器再写盘。</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let TOKEN = localStorage.getItem('panelToken') || '';
+let timer = null, jobTimer = null;
+let lastConfigLoaded = false;
+let SRV = null;         // 最近一次 /api/state 的 server 段
+let PROPS_ORIG = {};    // 属性初值，用于判断「已改」
+let LAST_LOGS = '';
+let peeked = false, pmTick = 0;
+
+function toast(msg, kind){
+  const t = $('toast');
+  t.className = 'toast show' + (kind ? ' ' + kind : '');
+  t.textContent = msg;
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.className = 'toast', kind === 'err' ? 9000 : 4500);
+}
+function esc(s){ return String(s === undefined || s === null ? '' : s)
+  .replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+
+async function api(path, opts){
+  opts = opts || {};
+  const headers = Object.assign({ 'X-Panel-Token': TOKEN }, opts.headers || {});
+  if (opts.body) headers['Content-Type'] = 'application/json';
+  const r = await fetch(path, { method: opts.method || 'GET', headers, body: opts.body });
+  let j = null;
+  try { j = await r.json(); } catch(e) {}
+  if (r.status === 401) { showGate(); throw new Error('未授权'); }
+  if (!r.ok) {
+    const err = new Error((j && (j.error || JSON.stringify(j.errors))) || ('HTTP ' + r.status));
+    err.payload = j; throw err;
+  }
+  return j;
+}
+
+function showGate(){ $('gate').style.display = 'flex'; }
+function hideGate(){ $('gate').style.display = 'none'; }
+function fmtUptime(s){
+  if (!s) return '—';
+  const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60);
+  return (d? d+'d ':'') + (h? h+'h ':'') + m + 'm';
+}
+
+/* ---------------- 标签页 ---------------- */
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button[data-tab]');
+  if (!b) return;
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + b.dataset.tab));
+  if (b.dataset.tab === 'runtime' && !$('rulesHost').dataset.loaded) loadRules();
+});
+
+/* ---------------- AI 配置 ---------------- */
+function fillConfig(c){
+  $('baseUrl').value = c.baseUrl || '';
+  $('name').value = c.name || '';
+  $('soft').value = c.softTimeoutSeconds;
+  $('hard').value = c.hardTimeoutSeconds;
+  $('mcpEnabled').value = String(!!c.mcpEnabled);
+  $('mcpPort').value = c.mcpPort;
+  $('chatAllowed').value = (c.chatAllowed || []).join('\n');
+  $('waypointAllowed').value = (c.waypointAllowed || []).join('\n');
+  $('skinAuto').value = String(!!c.skinAutoImport);
+  $('skinArm').value = c.skinArmType || 'CLASSIC';
+  lastConfigLoaded = true;
+}
+function parseUuids(v){ return v.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean); }
+function collectConfig(){
+  return {
+    baseUrl: $('baseUrl').value.trim(),
+    name: $('name').value.trim(),
+    softTimeoutSeconds: parseInt($('soft').value, 10),
+    hardTimeoutSeconds: parseInt($('hard').value, 10),
+    mcpEnabled: $('mcpEnabled').value === 'true',
+    mcpPort: parseInt($('mcpPort').value, 10),
+    chatAllowed: parseUuids($('chatAllowed').value),
+    waypointAllowed: parseUuids($('waypointAllowed').value),
+    skinAutoImport: $('skinAuto').value === 'true',
+    skinArmType: $('skinArm').value,
+  };
+}
+function showConfigErrors(errs){
+  ['baseUrl','name','soft','hard','mcpPort','chat','wp'].forEach(k => $('e_' + k).textContent = '');
+  if (!errs) return;
+  const map = { baseUrl:'e_baseUrl', name:'e_name', softTimeoutSeconds:'e_soft',
+                hardTimeoutSeconds:'e_hard', mcpPort:'e_mcpPort', chatAllowed:'e_chat', waypointAllowed:'e_wp' };
+  for (const [k, v] of Object.entries(errs)) if (map[k]) $(map[k]).textContent = v;
+}
+
+/* ---------------- 服务器属性 ---------------- */
+function propControl(p){
+  const dis = p.readOnly ? ' disabled' : '';
+  const common = `data-prop="${esc(p.key)}" data-orig="${esc(p.value)}"${dis}`;
+  if (p.type === 'bool') {
+    return `<select ${common}>
+      <option value="true"${p.value === 'true' ? ' selected' : ''}>true</option>
+      <option value="false"${p.value === 'false' ? ' selected' : ''}>false</option></select>`;
+  }
+  if (p.type === 'enum') {
+    return `<select ${common}>` + p.options.map(o =>
+      `<option value="${esc(o.v)}"${String(p.value) === String(o.v) ? ' selected' : ''}>${esc(o.label)}</option>`).join('') + `</select>`;
+  }
+  if (p.type === 'secret') {
+    return `<input type="text" value="${esc(p.value)}" disabled title="不回显">`;
+  }
+  const t = p.type === 'int' ? 'number' : 'text';
+  const mm = (p.min !== undefined && p.min !== null) ? ` min="${p.min}"` : '';
+  const mx = (p.max !== undefined && p.max !== null) ? ` max="${p.max}"` : '';
+  return `<input type="${t}" value="${esc(p.value)}"${mm}${mx} ${common}>`;
+}
+
+function renderProps(srv){
+  SRV = srv;
+  PROPS_ORIG = {};
+  $('cntServer').textContent = srv.props.length;
+  const host = $('propsHost');
+  host.innerHTML = srv.groups.map(g => `
+    <div class="card${g.id === 'other' ? ' full' : ''}">
+      <h2>${esc(g.title)}</h2>
+      ${g.props.map(p => {
+        PROPS_ORIG[p.key] = p.value;
+        const lock = p.managedBy
+          ? `<span class="lock" title="compose 环境变量 ${esc(p.managedBy)} 会在容器启动时覆盖此键">🔒 ${esc(p.managedBy)}</span>` : '';
+        return `<div class="prop" data-row="${esc(p.key)}">
+          <div class="meta">
+            <div class="k">${esc(p.label)} ${lock}</div>
+            <div class="kk">${esc(p.key)}${p.readOnly ? ' · 不回显' : ''}</div>
+            ${p.help ? `<div class="hint">${esc(p.help)}</div>` : ''}
+            ${p.hint ? `<div class="hint">${esc(p.hint)}</div>` : ''}
+            <div class="err" data-err="${esc(p.key)}"></div>
+          </div>
+          <div class="ctl">${propControl(p)}</div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+
+  // compose 接管提示
+  const managed = Object.entries(srv.managed || {});
+  const box = $('composeNotice');
+  if (managed.length) {
+    box.hidden = false;
+    $('composeNoticeBody').innerHTML =
+      '以下设置的当前值来自 <code>docker-compose.yml</code> 的环境变量，容器每次启动都会用环境变量覆盖 '
+      + '<code>server.properties</code>：<br>'
+      + managed.map(([p, e]) => `<code>${esc(p)}</code> ← <b>${esc(e)}</b>`).join('　')
+      + '<br><br>要改它们有两个办法：<br>'
+      + '① 勾选下方「同步到 compose」，面板会同时改 properties 和 compose（之后需 <code>docker compose up -d mc-server</code> 重建容器）；<br>'
+      + '② 点某一行的 🔒 徽标后面的「接管」按钮（见下方列表），把 compose 里那个环境变量注释掉，之后就完全由 properties 管理。';
+    // 为每个被接管的键补一个「接管」按钮
+    for (const [prop, env] of managed) {
+      const row = host.querySelector(`[data-row="${CSS.escape(prop)}"]`);
+      if (!row) continue;
+      const k = row.querySelector('.k');
+      const btn = document.createElement('button');
+      btn.className = 'ghost tiny';
+      btn.style.marginLeft = '7px';
+      btn.textContent = '交给 properties 管';
+      btn.onclick = async () => {
+        if (!confirm(`把 compose 里的 ${env} 注释掉？\n\n之后 ${prop} 完全由 server.properties 管理。\n需要在宿主机执行 docker compose up -d mc-server 才生效。`)) return;
+        try {
+          const r = await api('/api/compose/takeover', { method:'POST', body: JSON.stringify({ prop }) });
+          toast(r.note, 'ok');
+          refresh();
+        } catch (e) { toast(e.message, 'err'); }
+      };
+      k.appendChild(btn);
+    }
+  } else {
+    box.hidden = true;
+  }
+}
+
+function collectProps(){
+  const out = {};
+  document.querySelectorAll('#propsHost [data-prop]').forEach(el => {
+    if (el.disabled) return;
+    const k = el.dataset.prop;
+    const v = el.tagName === 'SELECT' ? el.value : el.value;
+    if (v !== el.dataset.orig) out[k] = v;
+  });
+  return out;
+}
+function markChangedProps(){
+  const changed = collectProps();
+  document.querySelectorAll('#propsHost [data-row]').forEach(row => {
+    row.classList.toggle('changed', changed[row.dataset.row] !== undefined);
+  });
+  return changed;
+}
+$('propsHost').addEventListener('input', markChangedProps);
+$('propsHost').addEventListener('change', markChangedProps);
+
+$('savePropsOnly').onclick = async () => {
+  const props = collectProps();
+  if (!Object.keys(props).length) return toast('没有改动', 'err');
+  try {
+    const r = await api('/api/props', { method:'POST',
+      body: JSON.stringify({ props, syncCompose: $('syncCompose').checked }) });
+    toast(r.note || '已保存', 'ok');
+    refresh();
+  } catch (e) {
+    const errs = e.payload && e.payload.errors;
+    if (errs) for (const [k, v] of Object.entries(errs)) {
+      const el = document.querySelector(`[data-err="${CSS.escape(k)}"]`);
+      if (el) el.textContent = v;
+    }
+    toast(e.message, 'err');
+  }
+};
+$('savePropsRestart').onclick = async () => {
+  const props = collectProps();
+  try {
+    await api('/api/apply', { method:'POST', body: JSON.stringify({
+      props, syncCompose: $('syncCompose').checked }) });
+    toast('已开始：停止 → 写盘 → 启动', 'ok');
+    startJobPoll();
+  } catch (e) {
+    const errs = e.payload && e.payload.errors;
+    if (errs) for (const [k, v] of Object.entries(errs)) {
+      const el = document.querySelector(`[data-err="${CSS.escape(k)}"]`);
+      if (el) el.textContent = v;
+    }
+    toast(e.message, 'err');
+  }
+};
+
+/* ---------------- 运行时控制 ---------------- */
+const RULE_CATALOG = [
+  { n:'advance_weather',               l:'天气自动变化（雨/雷/晴轮转）', g:'天气与时间' },
+  { n:'random_tick_speed',             l:'随机刻速度',                  g:'天气与时间' },
+  { n:'keep_inventory',                l:'死亡不掉落物品',              g:'生存规则' },
+  { n:'mob_griefing',                  l:'生物破坏方块',                g:'生存规则' },
+  { n:'natural_health_regeneration',   l:'自然回血',                    g:'生存规则' },
+  { n:'fall_damage',                   l:'摔落伤害',                    g:'生存规则' },
+  { n:'fire_damage',                   l:'火焰伤害',                    g:'生存规则' },
+  { n:'fire_spread_radius_around_player', l:'火焰蔓延半径',             g:'生存规则' },
+  { n:'pvp',                           l:'玩家互相伤害',                g:'生存规则' },
+  { n:'immediate_respawn',             l:'死亡后立即重生（跳过界面）',   g:'生存规则' },
+  { n:'players_sleeping_percentage',   l:'睡觉跳过夜晚所需比例(%)',      g:'生存规则' },
+  { n:'respawn_radius',                l:'重生点随机半径',              g:'生存规则' },
+  { n:'spawn_mobs',                    l:'生成生物',                    g:'刷怪' },
+  { n:'spawn_monsters',                l:'生成敌对怪物',                g:'刷怪' },
+  { n:'spawn_phantoms',                l:'生成幻翼',                    g:'刷怪' },
+  { n:'spawn_wardens',                 l:'生成监守者',                  g:'刷怪' },
+  { n:'spawn_wandering_traders',       l:'生成流浪商人',                g:'刷怪' },
+  { n:'spawn_patrols',                 l:'生成灾厄巡逻队',              g:'刷怪' },
+  { n:'spawner_blocks_work',           l:'刷怪笼工作',                  g:'刷怪' },
+  { n:'mob_drops',                     l:'生物掉落物',                  g:'掉落' },
+  { n:'block_drops',                   l:'方块掉落物',                  g:'掉落' },
+  { n:'entity_drops',                  l:'实体掉落物',                  g:'掉落' },
+  { n:'block_explosion_drop_decay',    l:'爆炸摧毁掉落物',              g:'掉落' },
+  { n:'command_blocks_work',           l:'命令方块可用',                g:'命令' },
+  { n:'command_block_output',          l:'命令方块输出到聊天栏',        g:'命令' },
+  { n:'send_command_feedback',         l:'命令执行反馈',                g:'命令' },
+  { n:'log_admin_commands',            l:'记录管理员命令到日志',        g:'命令' },
+  { n:'max_command_sequence_length',   l:'命令链最大长度',              g:'命令' },
+  { n:'max_block_modifications',       l:'单条命令最大方块修改数',       g:'命令' },
+  { n:'show_death_messages',           l:'显示死亡消息',                g:'提示' },
+  { n:'show_advancement_messages',     l:'显示进度达成消息',            g:'提示' },
+  { n:'global_sound_events',           l:'全局音效事件',                g:'提示' },
+  { n:'reduced_debug_info',            l:'精简调试信息',                g:'提示' },
+  { n:'limited_crafting',              l:'限制合成（必须用配方书）',      g:'其他' },
+  { n:'raids',                         l:'袭击事件',                    g:'其他' },
+  { n:'universal_anger',               l:'僵尸猪灵全体愤怒',            g:'其他' },
+  { n:'projectiles_can_break_blocks',  l:'弹射物可破坏方块',            g:'其他' },
+  { n:'ender_pearls_vanish_on_death',  l:'死亡时末影珍珠消失',          g:'其他' },
+  { n:'elytra_movement_check',         l:'鞘翅移动检查',                g:'其他' },
+  { n:'lava_source_conversion',        l:'岩浆源转换',                  g:'其他' },
+  { n:'spread_vines',                  l:'藤蔓蔓延',                    g:'其他' },
+  { n:'max_snow_accumulation_height',  l:'最大积雪高度',                g:'其他' },
+  { n:'max_entity_cramming',           l:'最大实体堆叠数',              g:'性能' },
+  { n:'locator_bar',                   l:'定位栏',                      g:'其他' },
+];
+let RULE_VALUES = {};
+
+async function loadRules(){
+  $('rulesHost').dataset.loaded = '1';
+  $('rulesStatus').textContent = '正在读取 ' + RULE_CATALOG.length + ' 条…';
+  renderRuleSkeleton();                 // 立刻出骨架，值先占位，避免干等十几秒白屏
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({
+      op: 'gameruleQuery', names: RULE_CATALOG.map(x => x.n) }) });
+    RULE_VALUES = r.rules || {};
+  } catch (e) {
+    $('rulesStatus').textContent = '读取失败';
+    $('rulesHost').insertAdjacentHTML('afterbegin',
+      '<div class="empty" style="color:#fca5a5">读取失败：' + esc(e.message) + '</div>');
+    return;
+  }
+  applyRuleValues();                    // 就地填值，不重建 DOM（保留滚动位置与焦点）
+  const bad = Object.values(RULE_VALUES).filter(v => !v.ok).length;
+  $('rulesStatus').textContent = bad ? ('已读取，有 ' + bad + ' 条失败') : '已读取';
+}
+
+function renderRuleSkeleton(){
+  const groups = {};
+  for (const c of RULE_CATALOG) (groups[c.g] = groups[c.g] || []).push(c);
+  $('rulesHost').className = '';
+  $('rulesHost').innerHTML = Object.entries(groups).map(([g, list]) => `
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;color:var(--dim);margin:0 0 4px;letter-spacing:.4px">${esc(g)}</div>
+      ${list.map(c => `
+        <div class="rule">
+          <div class="rmeta">
+            <div class="rname">${esc(c.l)}</div>
+            <span class="rid" id="rid_${esc(c.n)}">${esc(c.n)}</span>
+          </div>
+          <div class="rctl">
+            <input type="text" data-rule="${esc(c.n)}" data-orig="" value="" placeholder="读取中…" disabled>
+          </div>
+          <button class="ghost tiny" data-ruleapply="${esc(c.n)}" disabled>应用</button>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function applyRuleValues(){
+  for (const c of RULE_CATALOG) {
+    const v = RULE_VALUES[c.n] || {};
+    const host = $('rulesHost');
+    const el = host.querySelector(`[data-rule="${CSS.escape(c.n)}"]`);
+    const btn = host.querySelector(`[data-ruleapply="${CSS.escape(c.n)}"]`);
+    if (!el) continue;
+    el.disabled = false;
+    if (btn) btn.disabled = false;
+    const cur = v.ok ? v.value : '';
+    el.dataset.orig = cur;
+    if (!v.ok) {
+      el.type = 'text';
+      el.value = '';
+      el.placeholder = '读取失败，可手填';
+      const id = $('rid_' + c.n);
+      if (id) id.textContent = c.n + ' · 未知';
+      continue;
+    }
+    if (cur === 'true' || cur === 'false') {
+      el.outerHTML = `<select data-rule="${esc(c.n)}" data-orig="${esc(cur)}">`
+        + `<option value="true"${cur === 'true' ? ' selected' : ''}>true</option>`
+        + `<option value="false"${cur === 'false' ? ' selected' : ''}>false</option></select>`;
+    } else {
+      el.value = cur;
+    }
+  }
+}
+
+$('rulesHost').addEventListener('click', async e => {
+  const b = e.target.closest('[data-ruleapply]');
+  if (!b) return;
+  const name = b.dataset.ruleapply;
+  const el = $('rulesHost').querySelector(`[data-rule="${CSS.escape(name)}"]`);
+  const value = el.value.trim();
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({
+      op: 'gamerule', args: { name, value } }) });
+    RULE_VALUES[name] = { ok: true, value };
+    el.dataset.orig = value;
+    showRtOut(r.output, true);
+    toast('已设置 ' + name + ' = ' + value, 'ok');
+  } catch (err) { toast(err.message, 'err'); }
+});
+$('reloadRules').onclick = () => { $('rulesHost').dataset.loaded = ''; loadRules(); };
+$('applyCustomRule').onclick = async () => {
+  const name = $('customRule').value.trim();
+  const value = $('customRuleVal').value.trim();
+  if (!name) return toast('请填规则名', 'err');
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({
+      op: 'gamerule', args: { name, value } }) });
+    showRtOut(r.output, true);
+    toast(value ? '已设置' : '查询完成', 'ok');
+    if (value) RULE_VALUES[name] = { ok: true, value };
+  } catch (e) { toast(e.message, 'err'); }
+};
+
+function showRtOut(text, ok){
+  const el = $('rtOut');
+  el.style.display = 'block';
+  el.textContent = '> ' + text;
+}
+$('pane-runtime').addEventListener('click', async e => {
+  const b = e.target.closest('[data-rcon]');
+  if (!b) return;
+  const kind = b.dataset.rcon;
+  try {
+    let op, args;
+    if (kind === 'weather') {
+      const s = $('weatherSecs').value.trim();
+      op = 'weather'; args = { kind: b.dataset.kind };
+      if (s) args.seconds = s;
+    } else if (kind === 'time') {
+      op = 'time'; args = { marker: b.dataset.marker };
+    } else if (kind === 'timeFreeze') {
+      op = 'timeFreeze'; args = { state: b.dataset.state };
+    } else if (kind === 'difficulty') {
+      op = 'difficulty'; args = { level: b.dataset.level };
+    } else if (kind === 'whitelistToggle') {
+      op = 'whitelistToggle'; args = { state: b.dataset.state };
+    } else if (kind === 'query') {
+      // 只读查询：用 gamerule/time 之类不安全，这里直接走 banlist/whitelist 的只读动作
+      const cmd = b.dataset.cmd || '';
+      if (cmd === 'difficulty') { op = 'query'; args = { cmd: 'difficulty' }; }
+      else if (cmd.startsWith('time query')) { op = 'query'; args = { cmd: 'time query gametime' }; }
+      else if (cmd.startsWith('whitelist')) { op = 'whitelist'; args = { action: 'list' }; }
+      else if (cmd.startsWith('banlist')) { op = 'banlist'; args = { kind: 'players' }; }
+      else return toast('不支持的查询', 'err');
+    } else return;
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op, args }) });
+    showRtOut(r.command + '\n' + r.output, true);
+    toast('已执行：' + r.command, 'ok');
+    if (kind === 'whitelistToggle' || b.dataset.cmd === 'whitelist list') { refresh(); loadWhitelist(); }
+  } catch (err) { toast(err.message, 'err'); }
+});
+
+$('setTimeTicks').onclick = async () => {
+  const t = $('timeTicks').value.trim();
+  if (!t) return toast('请填 tick', 'err');
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op:'time', args:{ ticks: t } }) });
+    showRtOut(r.command + '\n' + r.output, true); toast('已设置时间', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+};
+$('applyGm').onclick = async () => {
+  const player = $('gmPlayer').value;
+  const mode = $('gmMode').value;
+  if (!player) return toast('请选择玩家', 'err');
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({
+      op:'gamemode', args:{ mode, player } }) });
+    showRtOut(r.command + '\n' + r.output, true); toast('已切换', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+};
+$('sendSay').onclick = async () => {
+  const text = $('sayText').value.trim();
+  if (!text) return toast('请输入内容', 'err');
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op:'say', args:{ text } }) });
+    $('sayText').value = '';
+    showRtOut(r.command, true); toast('已广播', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+};
+
+/* ---------------- 玩家管理 ---------------- */
+function renderOnline(pl){
+  const host = $('onlineHost');
+  $('pcount').textContent = pl.ok ? (pl.count + (pl.max ? ' / ' + pl.max : '')) : '—';
+  $('cntPlayers').textContent = pl.ok ? pl.count : '';
+  const list = (pl.players || []);
+  if (!list.length) { host.innerHTML = '<div class="empty">当前无人在线</div>'; }
+  else {
+    host.innerHTML = list.map(p => `
+      <div class="prow">
+        <span class="nm">${esc(p.name)}</span>
+        <span class="badge ${p.kind === 'bot' ? 'bot' : (p.kind === 'human' ? 'ok' : '')}">
+          ${p.kind === 'bot' ? 'AI' : (p.kind === 'human' ? '真人' : '未知')}</span>
+        <span class="uu" title="点击复制" data-copy="${esc(p.uuid || '')}">${esc(p.uuid || '(无 UUID)')}</span>
+        <span class="ops">
+          <button class="ghost tiny" data-pax="gm" data-name="${esc(p.name)}">切换模式</button>
+          <button class="ghost tiny" data-pax="op" data-name="${esc(p.name)}">设为 OP</button>
+          <button class="ghost tiny" data-pax="kick" data-name="${esc(p.name)}">踢出</button>
+        </span>
+      </div>`).join('');
+  }
+  // 更新「对在线玩家切换模式」下拉
+  const sel = $('gmPlayer');
+  const cur = sel.value;
+  sel.innerHTML = list.length
+    ? list.map(p => `<option value="${esc(p.name)}">${esc(p.name)}${p.kind === 'bot' ? ' (AI)' : ''}</option>`).join('')
+    : '<option value="">（无人在线）</option>';
+  if (cur && list.some(p => p.name === cur)) sel.value = cur;
+}
+$('onlineHost').addEventListener('click', async e => {
+  const cp = e.target.closest('[data-copy]');
+  if (cp) {
+    const v = cp.dataset.copy;
+    if (!v) return;
+    try { await navigator.clipboard.writeText(v); toast('已复制 UUID: ' + v, 'ok'); }
+    catch (err) { toast('复制失败，请手动选中', 'err'); }
+    return;
+  }
+  const b = e.target.closest('[data-pax]');
+  if (!b) return;
+  const name = b.dataset.name;
+  const act = b.dataset.pax;
+  try {
+    if (act === 'gm') {
+      document.querySelector('#tabs button[data-tab="runtime"]').click();
+      $('gmPlayer').value = name;
+      $('gmMode').focus();
+      toast('已切到「运行时控制」，选好模式后点应用', 'ok');
+      return;
+    }
+    const op = act === 'op' ? 'op' : 'kick';
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op, args: { player: name } }) });
+    toast('已执行：' + r.command, 'ok');
+    refresh();
+  } catch (err) { toast(err.message, 'err'); }
+});
+
+function renderOps(ops){
+  const host = $('opsHost');
+  if (!ops.length) { host.innerHTML = '<div class="empty">暂无 OP</div>'; return; }
+  host.innerHTML = ops.map(o => `
+    <div class="prow">
+      <span class="nm">${esc(o.name)}</span>
+      <span class="badge">等级 ${esc(o.level)}</span>
+      <span class="uu" title="点击复制" data-copy="${esc(o.uuid)}">${esc(o.uuid)}</span>
+      <span class="ops"><button class="ghost tiny" data-pax2="deop" data-name="${esc(o.name)}">取消 OP</button></span>
+    </div>`).join('');
+}
+$('opsHost').addEventListener('click', async e => {
+  const cp = e.target.closest('[data-copy]');
+  if (cp) { try { await navigator.clipboard.writeText(cp.dataset.copy); toast('已复制', 'ok'); } catch (err) {} return; }
+  const b = e.target.closest('[data-pax2]');
+  if (!b) return;
+  if (!confirm('取消 ' + b.dataset.name + ' 的 OP？')) return;
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op:'deop', args:{ player: b.dataset.name } }) });
+    toast('已执行：' + r.command, 'ok'); refresh();
+  } catch (err) { toast(err.message, 'err'); }
+});
+$('doOp').onclick = async () => {
+  const n = $('opName').value.trim();
+  if (!n) return toast('请输入用户名', 'err');
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op:'op', args:{ player: n } }) });
+    $('opName').value = ''; toast('已执行：' + r.command, 'ok'); refresh();
+  } catch (e) { toast(e.message, 'err'); }
+};
+
+function renderWhitelist(list){
+  const host = $('wlHost');
+  if (!list.length) { host.innerHTML = '<div class="empty">白名单为空</div>'; return; }
+  host.innerHTML = list.map(w => `
+    <div class="prow">
+      <span class="nm">${esc(w.name)}</span>
+      <span class="uu" title="点击复制" data-copy="${esc(w.uuid)}">${esc(w.uuid)}</span>
+      <span class="ops"><button class="ghost tiny" data-wlrm="${esc(w.name)}">移除</button></span>
+    </div>`).join('');
+}
+$('wlHost').addEventListener('click', async e => {
+  const cp = e.target.closest('[data-copy]');
+  if (cp) { try { await navigator.clipboard.writeText(cp.dataset.copy); toast('已复制', 'ok'); } catch (err) {} return; }
+  const b = e.target.closest('[data-wlrm]');
+  if (!b) return;
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op:'whitelist', args:{ action:'remove', player: b.dataset.wlrm } }) });
+    toast('已执行：' + r.command, 'ok'); loadWhitelist();
+  } catch (err) { toast(err.message, 'err'); }
+});
+$('wlAdd').onclick = async () => {
+  const n = $('wlName').value.trim(); if (!n) return toast('请输入用户名', 'err');
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op:'whitelist', args:{ action:'add', player: n } }) });
+    $('wlName').value = ''; toast('已执行：' + r.command, 'ok'); loadWhitelist();
+  } catch (e) { toast(e.message, 'err'); }
+};
+$('wlRemove').onclick = async () => {
+  const n = $('wlName').value.trim(); if (!n) return toast('请输入用户名', 'err');
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op:'whitelist', args:{ action:'remove', player: n } }) });
+    $('wlName').value = ''; toast('已执行：' + r.command, 'ok'); loadWhitelist();
+  } catch (e) { toast(e.message, 'err'); }
+};
+
+function renderBanned(bans){
+  const host = $('banHost');
+  if (!bans.length) { host.innerHTML = '<div class="empty">无封禁记录</div>'; return; }
+  host.innerHTML = bans.map(b => `
+    <div class="prow">
+      <span class="nm">${esc(b.name)}</span>
+      <span class="muted" style="flex:1;font-size:12px">${esc(b.reason || '（无理由）')}</span>
+      <span class="ops"><button class="ghost tiny" data-pardon="${esc(b.name)}">解除</button></span>
+    </div>`).join('');
+}
+$('banHost').addEventListener('click', async e => {
+  const b = e.target.closest('[data-pardon]');
+  if (!b) return;
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op:'pardon', args:{ player: b.dataset.pardon } }) });
+    toast('已执行：' + r.command, 'ok'); refresh();
+  } catch (err) { toast(err.message, 'err'); }
+});
+$('doBan').onclick = async () => {
+  const n = $('banName').value.trim(); if (!n) return toast('请输入用户名', 'err');
+  if (!confirm('封禁 ' + n + '？')) return;
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({
+      op:'ban', args:{ player: n, reason: $('banReason').value.trim() } }) });
+    $('banName').value = ''; $('banReason').value = '';
+    toast('已执行：' + r.command, 'ok'); refresh();
+  } catch (e) { toast(e.message, 'err'); }
+};
+$('doPardon').onclick = async () => {
+  const n = $('banName').value.trim(); if (!n) return toast('请输入用户名', 'err');
+  try {
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op:'pardon', args:{ player: n } }) });
+    $('banName').value = ''; toast('已执行：' + r.command, 'ok'); refresh();
+  } catch (e) { toast(e.message, 'err'); }
+};
+
+/* ---------------- 密码与令牌 ---------------- */
+function randStr(n){
+  const a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+  const u = new Uint32Array(n);
+  crypto.getRandomValues(u);
+  return Array.from(u, x => a[x % a.length]).join('');
+}
+$('genToken').onclick = () => { $('newToken').value = randStr(48); };
+$('genRconPw').onclick = () => { $('newRconPw').value = randStr(24); };
+$('saveToken').onclick = async () => {
+  const v = $('newToken').value.trim();
+  if (!v) return toast('请输入新令牌', 'err');
+  if (!confirm('修改面板令牌？\n\n当前页面会立即失效，需要用新令牌重新登录。')) return;
+  try {
+    const r = await api('/api/vault', { method:'POST', body: JSON.stringify({ kind:'panel', value: v }) });
+    localStorage.setItem('panelToken', v);
+    TOKEN = v;
+    $('newToken').value = '';
+    toast(r.note, 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+};
+$('saveRconPw').onclick = async () => {
+  const v = $('newRconPw').value.trim();
+  if (!v) return toast('请输入新密码', 'err');
+  if (!confirm('修改 RCON 密码？\n\n会同时改写 server.properties 与 compose 两处。\n之后需要在宿主机执行 docker compose up -d mc-server mcai-panel 才完全生效。')) return;
+  try {
+    const r = await api('/api/vault', { method:'POST', body: JSON.stringify({ kind:'rcon', value: v }) });
+    $('newRconPw').value = '';
+    toast(r.note, 'ok');
+    refresh();
+  } catch (e) { toast(e.message, 'err'); }
+};
+
+/* ---------------- 状态刷新 ---------------- */
+async function refresh(){
+  try{
+    const s = await api('/api/state');
+    const ct = s.container || {};
+    $('mcState').textContent = ct.running ? (ct.health ? ct.status + ' / ' + ct.health : ct.status) : (ct.error ? '不可用' : ct.status);
+    $('dotMc').className = 'dot ' + (ct.running ? (ct.health === 'unhealthy' ? 'warn' : 'on') : 'off');
+    const pl = s.players || {};
+    $('players').textContent = pl.ok ? (pl.count + (pl.max ? ' / ' + pl.max : '')) : '—';
+    $('dotAi').className = 'dot ' + (pl.ok && pl.players && pl.players.some(p => p.kind === 'bot') ? 'on'
+      : (pl.ok && pl.count ? 'warn' : 'off'));
+    const names = pl.players && pl.players.length
+      ? pl.players.map(p => p.name + (p.kind === 'bot' ? '(AI)' : '')).join(', ') : '无人在线';
+    $('subline').textContent = '容器 ' + (ct.image || '?') + ' · 运行 ' + fmtUptime(ct.uptimeSeconds) + ' · 玩家：' + names;
+
+    if (!lastConfigLoaded) fillConfig(s.config);
+    const k = s.apiKey || {};
+    $('keyState').innerHTML = k.present ? '<span class="badge ok">已设置</span>' : '<span class="badge no">缺失</span>';
+    $('keyBytes').textContent = k.present ? k.bytes : '—';
+    $('keyMode').textContent = k.present ? k.mode : '—';
+
+    if (s.server) renderProps(s.server);
+    $('tokState').innerHTML = '<span class="badge ok">已启用</span>';
+    $('tokLen').textContent = TOKEN ? TOKEN.length + ' 位' : '—';
+    if (!peeked) { peeked = true; peekRcon(); }
+
+    renderOnline(pl);
+    const pm = s.players_mgmt || {};
+    renderOps(pm.ops || []);
+    renderBanned(pm.banned || []);
+    // 白名单走 RCON 实时列表；不必每 5 秒拉一次，30 秒或切到该页时再拉
+    if (pmTick % 6 === 0 && (pl.ok)) loadWhitelist();
+    pmTick++;
+
+    renderLogs(s.logs || '');
+    renderJob(s.job);
+  }catch(e){ /* 静默，下次再试 */ }
+}
+
+async function peekRcon(){
+  try{
+    const r = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op: 'rconPasswordPeek' }) });
+    $('rconHost').textContent = r.host + ':' + r.port;
+    $('rconLen').textContent = r.configured ? (r.chars + ' 位') : '缺失';
+  }catch(e){ $('rconHost').textContent = '—'; }
+}
+
+async function loadWhitelist(){
+  const host = $('wlHost');
+  try {
+    const wl = await api('/api/rcon', { method:'POST', body: JSON.stringify({ op:'whitelist', args:{ action:'list' } }) });
+    const out = String(wl.output || '');
+    if (/no whitelisted/i.test(out) || !out.trim()) { renderWhitelist([]); return; }
+    const tail = out.replace(/^[^:]*:\s*/, '').trim();
+    renderWhitelist(tail.split(',').map(x => x.trim()).filter(Boolean).map(n => ({ name: n, uuid: '' })));
+  } catch (e) { host.innerHTML = '<div class="empty">读取失败：' + esc(e.message) + '</div>'; }
+}
+
+function renderLogs(text){
+  if (text !== undefined && text !== null) LAST_LOGS = text;
+  const el = $('logs');
+  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  const q = ($('logFilter').value || '').trim().toLowerCase();
+  let lines = LAST_LOGS.split('\n');
+  if (q) lines = lines.filter(l => l.toLowerCase().includes(q));
+  const hidden = LAST_LOGS.split('\n').length - lines.length;
+  el.innerHTML = (q && hidden > 0 ? '（已过滤 ' + hidden + ' 行）\n' : '')
+    + lines.map(l => {
+    let cls = '';
+    if (/ERROR|Exception|error/i.test(l)) cls = 'e';
+    else if (/\bAI\]|Live-model|joined the game/.test(l)) cls = 'k';
+    return '<span class="' + cls + '">' + esc(l) + '</span>';
+  }).join('\n');
+  if (atBottom) el.scrollTop = el.scrollHeight;
+}
+
+function renderJob(job){
+  if (!job || !job.id) { $('jobbar').style.display = 'none'; return; }
+  $('jobbar').style.display = 'flex';
+  $('jobStep').textContent = job.error ? '失败' : (job.running ? job.step : '完成');
+  $('jobLog').innerHTML = job.log.slice(-6).map(l => '<div>' + esc(l) + '</div>').join('')
+    + (job.error ? '<div style="color:#fca5a5">' + esc(job.error) + '</div>' : '');
+  const b = $('jobBadge');
+  b.textContent = job.running ? '进行中' : (job.error ? '失败' : '完成');
+  b.className = 'badge ' + (job.running ? '' : (job.error ? 'no' : 'ok'));
+  if (job.running) startJobPoll(); else stopJobPoll();
+}
+function startJobPoll(){
+  if (jobTimer) return;
+  jobTimer = setInterval(async () => {
+    try{
+      const j = await api('/api/job');
+      renderJob(j.job);
+      if (!j.job.running) { await refresh(); stopJobPoll(); }
+    }catch(e){}
+  }, 2000);
+}
+function stopJobPoll(){ if (jobTimer) { clearInterval(jobTimer); jobTimer = null; } }
+
+async function doAction(action){
+  try{
+    await api('/api/action', { method:'POST', body: JSON.stringify({ action }) });
+    toast('任务已排队：' + action);
+    startJobPoll();
+  }catch(e){ toast(e.message, 'err'); }
+}
+
+/* ---------------- 事件绑定 ---------------- */
+$('gateBtn').onclick = async () => {
+  TOKEN = $('gateInput').value.trim();
+  $('gateErr').textContent = '';
+  try{
+    await api('/api/state');
+    localStorage.setItem('panelToken', TOKEN);
+    hideGate(); refresh();
+    timer = setInterval(() => { if ($('autoRefresh').checked) refresh(); }, 5000);
+  }catch(e){ $('gateErr').textContent = e.message === '未授权' ? '令牌不正确' : e.message; }
+};
+$('gateInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('gateBtn').click(); });
+$('logout').onclick = () => { localStorage.removeItem('panelToken'); TOKEN=''; showGate(); };
+
+$('refreshBtn').onclick = refresh;
+$('logFilter').addEventListener('input', () => renderLogs());
+
+$('saveOnly').onclick = async () => {
+  showConfigErrors(null);
+  try{
+    await api('/api/config', { method:'POST', body: JSON.stringify(collectConfig()) });
+    const props = collectProps();
+    let extra = '';
+    if (Object.keys(props).length) {
+      const r = await api('/api/props', { method:'POST',
+        body: JSON.stringify({ props, syncCompose: $('syncCompose').checked }) });
+      extra = ' ' + (r.note || '');
+    }
+    toast('已保存。重启 mc-server 后生效。' + extra, 'ok');
+    refresh();
+  }catch(e){ showConfigErrors(e.payload && e.payload.errors); toast(e.message, 'err'); }
+};
+$('keyBtn').onclick = async () => {
+  const key = $('apiKey').value;
+  if (!key.trim()) return toast('请先输入新的 API Key', 'err');
+  try{
+    await api('/api/apikey', { method:'POST', body: JSON.stringify({ key }) });
+    $('apiKey').value = '';
+    toast('API Key 已保存。重启 mc-server 后生效。', 'ok');
+    refresh();
+  }catch(e){ toast(e.message, 'err'); }
+};
+$('saveRestart').onclick = async () => {
+  showConfigErrors(null);
+  try{
+    const payload = { config: collectConfig(), syncCompose: $('syncCompose').checked };
+    const key = $('apiKey').value.trim();
+    if (key) payload.apiKey = key;
+    const props = collectProps();
+    if (Object.keys(props).length) payload.props = props;
+    await api('/api/apply', { method:'POST', body: JSON.stringify(payload) });
+    $('apiKey').value = '';
+    toast('已开始：停止 → 写盘 → 启动', 'ok');
+    startJobPoll();
+  }catch(e){
+    const errs = e.payload && e.payload.errors;
+    showConfigErrors(errs);
+    if (errs) for (const [k, v] of Object.entries(errs)) {
+      const el = document.querySelector(`[data-err="${CSS.escape(k)}"]`);
+      if (el) el.textContent = v;
+    }
+    toast(e.message, 'err');
+  }
+};
+$('restartOnly').onclick = () => doAction('restart');
+$('stopOnly').onclick = () => { if (confirm('确定要停止 mc-server 吗？')) doAction('stop'); };
+$('startOnly').onclick = () => doAction('start');
+
+$('testBtn').onclick = async () => {
+  const out = $('testOut');
+  out.style.display = 'block';
+  out.textContent = '正在探测…（每个请求最多 40s）';
+  try{
+    const r = await api('/api/test-model', { method:'POST' });
+    const lines = [];
+    lines.push('配置: ' + r.result.config.baseUrl);
+    lines.push('模型: ' + r.result.config.name + '   密钥: ' + (r.result.keyPresent ? '已读取' : '缺失'));
+    lines.push('');
+    for (const x of r.result.results){
+      lines.push('[' + (x.ok ? 'OK ' : 'FAIL') + '] ' + (x.status || '-') + '  '
+        + (x.ms ? x.ms + 'ms  ' : '') + x.url);
+      if (x.error) lines.push('        ' + x.error);
+      if (x.snippet) lines.push('        ' + x.snippet.replace(/\s+/g, ' ').slice(0, 300));
+      lines.push('');
+    }
+    out.textContent = lines.join('\n');
+  }catch(e){ out.textContent = '探测失败: ' + e.message; }
+};
+
+/* ---------------- 启动 ---------------- */
+(async () => {
+  try{
+    const p = await (await fetch('/api/ping')).json();
+    if (!p.authRequired) { hideGate(); refresh(); timer = setInterval(() => { if ($('autoRefresh').checked) refresh(); }, 5000); return; }
+  }catch(e){}
+  if (TOKEN) { $('gateInput').value = TOKEN; $('gateBtn').click(); }
+  else showGate();
+})();
+</script>
+</body>
+</html>
