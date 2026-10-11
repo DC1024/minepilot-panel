@@ -14,10 +14,10 @@ screenshot still reads as a real product UI.
 from PIL import Image, ImageDraw, ImageFont
 import os
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(os.path.dirname(HERE))
-SHOTS = os.path.join(ROOT, "shots")
-OUT = os.path.join(ROOT, "site", "assets")
+HERE = os.path.dirname(os.path.abspath(__file__))          # <repo>/docs/_tools
+ROOT = os.path.dirname(os.path.dirname(HERE))              # <repo>
+SHOTS = os.path.join(ROOT, "shots")                        # raw, un-redacted shots
+OUT = os.path.join(ROOT, "docs", "assets")                 # the GitHub Pages folder
 os.makedirs(OUT, exist_ok=True)
 
 FG = (143, 163, 192)        # --dim, the panel's secondary text colour

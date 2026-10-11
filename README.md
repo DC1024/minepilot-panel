@@ -9,7 +9,7 @@
 | 路径 | 说明 |
 |---|---|
 | **`OUR-IMPROVEMENTS.md`** | **对上游 MinePilot 的 8 个补丁改进汇总**（输出契约降级 / 无 schema 契约内联 schema / 技能失败诊断 / use_block 前置 / 真人误踢修复）——先看这份 |
-| **`site/`** | **宣传页**（`index.html`，零依赖静态页，可直接作为 GitHub Pages 首页）：项目总览、端到端拓扑、8 个补丁详情、6 页签面板、安全边界、快速上手、脱敏截图 |
+| **`docs/`** | **宣传页 + GitHub Pages 发布目录**（`index.html`，零依赖静态页）：项目总览、端到端拓扑、8 个补丁详情、6 页签面板、安全边界、快速上手、脱敏截图 |
 | `mcai-panel/` | 自研 Web 面板：`server.js`（后端，零依赖）+ `index.html`（单页前端）+ `selftest.js`（181 项自测） |
 | `docker-compose.example.yml` | 部署用 compose 示例（含 `mcai-panel` + `mc-server` 服务，凭据已脱敏） |
 | `shots/` | 面板 6 页签的无头浏览器验证截图 |
@@ -40,15 +40,17 @@ docker restart mcai-panel            # 改完 server.js/index.html 后（只读�
 
 详见 `MinePilot-配置面板-使用说明.md`。
 
-## 宣传页（`site/`）
+## 宣传页（`docs/`）
 
-零依赖单文件静态页，直接双击 `site/index.html` 即可预览：
+零依赖单文件静态页，直接双击 `docs/index.html` 即可预览：
 
 ```bash
 # 本地预览（可选）
-python -m http.server 8080 --directory site    # 然后打开 http://127.0.0.1:8080
+python -m http.server 8080 --directory docs    # 然后打开 http://127.0.0.1:8080
 ```
 
-若用它做 GitHub Pages 站点（Settings → Pages → Source: `main` / `/site`），
-注意仓库是公开的：`site/assets/` 里的截图已经过脱敏（`site/_tools/sanitize_shots.py`）——
+发布为 GitHub Pages：**Settings → Pages → Source: `Deploy from a branch` → `main` + `/docs`**。
+> Pages 的文件夹下拉框只提供 `/ (root)` 和 `/docs` 两项，所以发布目录固定叫 `docs/`，不要改名。
+
+注意仓库是公开的：`docs/assets/` 里的截图已经过脱敏（`docs/_tools/sanitize_shots.py`）——
 **真实面板令牌与内网 IP 已遮盖**，改动截图后请重跑该脚本再提交。
