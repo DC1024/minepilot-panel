@@ -68,3 +68,15 @@ python -m http.server 8080 --directory docs    # 然后打开 http://127.0.0.1:8
 - 服务端基础镜像由同一工作流在**手动触发**或**每月计划**时从 Docker Hub 镜像到 GHCR。
 - `docker-compose.example.yml` 已改为使用上述 ghcr.io 镜像。
 - 首次拉取需登录 GHCR：`echo $GITHUB_TOKEN | docker login ghcr.io -u <用户名> --password-stdin`（私有仓库）；公开包可直接 `docker pull`。
+
+## 模组 jar 与 minepilot-build 的联动
+
+`mc-server` 所需的 `mcai_companion` 模组 jar 由 **minepilot-build** 仓库构建并发布：
+
+- `minepilot-build` 的 `build-jar.yml` 在每次 push `main`（含每月上游同步后的重建）时，
+  把最新 jar 发布到 GitHub Release `mcai-companion-latest`，稳定下载地址：
+  `https://github.com/DC1024/minepilot-build/releases/download/mcai-companion-latest/mcai_companion.jar`
+- 本仓库 `docker-compose.example.yml` 中有一个 `mod-sync` 服务，在 `mc-server` 启动前
+  自动把上述 jar 拉到 `./minecraft-data/mods/`。
+  即：**重新 `docker compose up` 就会用上 minepilot-build 同步上游后产出的最新 jar**。
+- `mod-sync` 拉取失败则 `mc-server` 不会启动（避免缺模组空跑）；公开仓库免 token 直拉。

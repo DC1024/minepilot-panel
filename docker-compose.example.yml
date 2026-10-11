@@ -10,6 +10,9 @@ services:
     image: ghcr.io/dc1024/minepilot-panel-mc-server:java25
     container_name: mc-server
     restart: unless-stopped
+    depends_on:
+      mod-sync:
+        condition: service_completed_successfully
     environment:
       EULA: "TRUE"
       TYPE: "FORGE"
@@ -104,6 +107,27 @@ services:
       MC_GID: "1000"
       TZ: "Asia/Shanghai"
     # command 已内置在镜像中，无需再挂源码或指定 command
+
+
+  # ====================================================================
+  # 模组同步：从 minepilot-build 的 GitHub Release 拉取最新 mcai_companion.jar
+  #   - minepilot-build 每次 push main（含每月上游同步后重建）都会更新该 Release
+  #   - mc-server depends_on 本服务，确保启动前 mod 已就位；拉取失败则不启动服务端
+  #   - 仓库为公开，免 token 直拉；若设为私有，请在 environment 注入 GITHUB_TOKEN
+  #     并在 command 的 curl 上加 -H "Authorization: Bearer $GITHUB_TOKEN"
+  # ====================================================================
+  mod-sync:
+    image: curlimages/curl:latest
+    container_name: mod-sync
+    restart: "no"
+    volumes:
+      - ./minecraft-data:/data
+    environment:
+      MOD_URL: "https://github.com/DC1024/minepilot-build/releases/download/mcai-companion-latest/mcai_companion.jar"
+    command:
+      - sh
+      - -c
+      - "mkdir -p /data/mods && curl -fSL -o /data/mods/mcai_companion.jar $$MOD_URL && echo 'mod jar synced'"
 
 networks:
   default:
